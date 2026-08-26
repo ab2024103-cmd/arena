@@ -13,7 +13,7 @@ kotlin {
 
 dependencies {
     implementation(project(":shared"))
-    implementation(compose.desktop.currentOS)
+    implementation(compose.desktop.currentOs)
 }
 
 compose.desktop {
@@ -21,7 +21,7 @@ compose.desktop {
         mainClass = "net.morsecode.desktop.MainKt"
 
         nativeDistributions {
-            targetFormats(Targets.Msi, Targets.Exe)
+            targetFormats(TargetFormat.Msi, TargetFormat.Exe)
             packageName = "MorseCode"
             packageVersion = "1.0.0"
             description = "Morse Code - fast, private, fully offline LAN file transfer"
