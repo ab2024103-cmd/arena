@@ -17,15 +17,12 @@ kotlin {
         compilerOptions { jvmTarget.set(JvmTarget.JVM_17) }
     }
 
-    // Intermediate source set with code shared by both JVM-based targets
-    // (JmDNS discovery, protocol plumbing). androidMain and jvmMain depend on it.
     sourceSets {
-        val jvmShared by creating { dependsOn(commonMain.get()) }
-        androidMain.get().dependsOn(jvmShared)
-        jvmMain.get().dependsOn(jvmShared)
-    }
+        // Code shared by both JVM-based targets (JmDNS discovery base).
+        // Registered as an extra source root (no custom dependsOn hierarchy).
+        androidMain { kotlin.srcDir("src/jvmShared/kotlin") }
+        jvmMain { kotlin.srcDir("src/jvmShared/kotlin") }
 
-    sourceSets {
         commonMain.dependencies {
             implementation(compose.runtime)
             implementation(compose.foundation)
@@ -36,7 +33,8 @@ kotlin {
             implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
             implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
             implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.6.1")
-            // Ktor embedded web server (JVM engine, runs on Android + Desktop alike)
+            // Both targets are JVM-based, so JVM-only libraries (Ktor CIO,
+            // ZXing) resolve fine from commonMain.
             implementation("io.ktor:ktor-server-core:2.3.12")
             implementation("io.ktor:ktor-server-cio:2.3.12")
             implementation("io.ktor:ktor-server-websockets:2.3.12")
@@ -46,15 +44,11 @@ kotlin {
             implementation("com.google.zxing:core:3.5.3")
             api("app.cash.sqldelight:runtime:2.0.2")
         }
-        val jvmShared by getting {
-            dependencies {
-                implementation("org.jmdns:jmdns:3.5.9")
-            }
-        }
         commonTest.dependencies {
             implementation(kotlin("test"))
         }
         androidMain.dependencies {
+            implementation("org.jmdns:jmdns:3.5.9")
             implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
             implementation("app.cash.sqldelight:android-driver:2.0.2")
             implementation("androidx.activity:activity-compose:1.9.3")
@@ -69,6 +63,7 @@ kotlin {
             implementation("androidx.camera:camera-view:1.3.4")
         }
         jvmMain.dependencies {
+            implementation("org.jmdns:jmdns:3.5.9")
             implementation("app.cash.sqldelight:sqlite-driver:2.0.2")
             implementation("uk.co.caprica:vlcj:4.8.2")
         }
