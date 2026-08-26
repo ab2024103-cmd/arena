@@ -1,0 +1,53 @@
+CREATE TABLE transfer_state (
+  transfer_id TEXT NOT NULL,
+  file_id TEXT NOT NULL,
+  batch_id TEXT,
+  peer_device_id TEXT NOT NULL,
+  filename TEXT NOT NULL,
+  total_chunks INTEGER NOT NULL,
+  verified_chunks_bitmap TEXT NOT NULL DEFAULT '',
+  sha256_full TEXT NOT NULL,
+  status TEXT NOT NULL,
+  direction TEXT NOT NULL,
+  updated_at INTEGER NOT NULL,
+  PRIMARY KEY (transfer_id, file_id)
+);
+
+upsertState:
+INSERT OR REPLACE INTO transfer_state
+  (transfer_id, file_id, batch_id, peer_device_id, filename, total_chunks, verified_chunks_bitmap, sha256_full, status, direction, updated_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+findState:
+SELECT * FROM transfer_state WHERE transfer_id = ? AND file_id = ?;
+
+updateBitmap:
+UPDATE transfer_state SET verified_chunks_bitmap = ?, updated_at = ? WHERE transfer_id = ? AND file_id = ?;
+
+updateStatus:
+UPDATE transfer_state SET status = ?, updated_at = ? WHERE transfer_id = ? AND file_id = ?;
+
+deleteState:
+DELETE FROM transfer_state WHERE transfer_id = ? AND file_id = ?;
+
+CREATE TABLE chat_message (
+  message_id TEXT NOT NULL PRIMARY KEY,
+  peer_device_id TEXT NOT NULL,
+  text TEXT NOT NULL,
+  direction TEXT NOT NULL,
+  sent_at INTEGER NOT NULL,
+  delivered INTEGER NOT NULL DEFAULT 0
+);
+
+insertChat:
+INSERT OR REPLACE INTO chat_message (message_id, peer_device_id, text, direction, sent_at, delivered)
+VALUES (?, ?, ?, ?, ?, ?);
+
+markDelivered:
+UPDATE chat_message SET delivered = 1 WHERE message_id = ?;
+
+chatForPeer:
+SELECT * FROM chat_message WHERE peer_device_id = ? ORDER BY sent_at ASC;
+
+chatPeers:
+SELECT DISTINCT peer_device_id FROM chat_message;
