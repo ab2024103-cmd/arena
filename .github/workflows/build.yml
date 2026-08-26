@@ -1,0 +1,119 @@
+# ============================================================================
+# Morse Code — CI build & release
+# ----------------------------------------------------------------------------
+# One-time manual step (sandbox cannot push workflow files):
+#   Move/copy THIS file to .github/workflows/build.yml
+#   (e.g. on GitHub: "Add file" -> "Create new file"
+#        path: .github/workflows/build.yml
+#        paste this content)
+# It then builds on every push and publishes a GitHub Release with:
+#   - Android APK (signed, release)
+#   - Windows MSI installer (jpackage + WiX)
+#   - Windows EXE installer (jpackage + Inno Setup)
+#   - Portable Windows app folder (zip)
+# ============================================================================
+name: Build Morse Code (APK + MSI + EXE)
+
+on:
+  push:
+    branches: ["**"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: morsecode-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  android:
+    name: Android APK (release, signed)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle (with caching)
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Shared module JVM tests (Phases 1-9 gates)
+        run: ./gradlew :shared:jvmTest --stacktrace
+
+      - name: Build signed release APK
+        run: ./gradlew :androidApp:assembleRelease --stacktrace
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: MorseCode-android
+          path: androidApp/build/outputs/apk/release/*.apk
+          if-no-files-found: error
+
+  desktop:
+    name: Windows MSI + EXE + portable
+    runs-on: windows-latest
+    needs: android
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle (with caching)
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Install WiX 3 (MSI) and Inno Setup 6 (EXE) for jpackage
+        shell: pwsh
+        run: |
+          choco install wixtoolset innosetup -y --no-progress
+          echo "C:\Program Files (x86)\WiX Toolset v3.11\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          echo "C:\Program Files (x86)\Inno Setup 6" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+      - name: Package MSI + EXE + app image
+        shell: pwsh
+        run: |
+          .\gradlew.bat :desktopApp:packageDistributionForCurrentOS :desktopApp:packageReleaseAppImage --stacktrace
+
+      - name: Zip portable app image
+        shell: pwsh
+        run: |
+          $dir = Get-ChildItem -Directory -Recurse desktopApp/build/compose/binaries | Where-Object { $_.FullName -match '\\app\\MorseCode$' } | Select-Object -First 1
+          if (-not $dir) { throw "app image not found" }
+          Compress-Archive -Path (Join-Path $dir.FullName '*') -DestinationPath MorseCode-windows-portable.zip -Force
+
+      - name: Collect binaries
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          Get-ChildItem -Recurse desktopApp/build/compose/binaries -Include *.msi | Copy-Item -Destination dist
+          Get-ChildItem -Recurse desktopApp/build/compose/binaries -Include *.exe -Exclude *.application | Copy-Item -Destination dist -ErrorAction SilentlyContinue
+          Copy-Item MorseCode-windows-portable.zip dist
+          Get-ChildItem dist
+
+      - name: Download Android APK artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: MorseCode-android
+          path: dist
+
+      - name: Publish GitHub Release
+        if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = "v1.0.0-build.$($env:GITHUB_RUN_NUMBER)"
+          "tag=$tag" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          gh release create $tag dist/* --title "Morse Code $tag" --notes "Automated build from commit $($env:GITHUB_SHA.Substring(0,8)). Contains: signed Android APK, Windows MSI installer, Windows EXE installer, portable Windows zip."
+          gh release upload $tag dist/* --clobber
