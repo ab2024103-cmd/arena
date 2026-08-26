@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <cache-path name="apks" path="apks/" />
+    <external-files-path name="downloads" path="Download/MorseCode/" />
+    <external-path name="external_downloads" path="Download/MorseCode/" />
+</paths>

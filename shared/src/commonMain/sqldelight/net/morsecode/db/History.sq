@@ -1,0 +1,63 @@
+CREATE TABLE history_entry (
+  id TEXT NOT NULL PRIMARY KEY,
+  batch_id TEXT,
+  peer_device_id TEXT NOT NULL,
+  peer_name TEXT NOT NULL,
+  filename TEXT NOT NULL,
+  size_bytes INTEGER NOT NULL,
+  direction TEXT NOT NULL,
+  kind TEXT NOT NULL,
+  mime TEXT,
+  source TEXT,
+  path TEXT,
+  status TEXT NOT NULL,
+  ts INTEGER NOT NULL
+);
+
+insertHistory:
+INSERT OR REPLACE INTO history_entry (id, batch_id, peer_device_id, peer_name, filename, size_bytes, direction, kind, mime, source, path, status, ts)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+updateHistoryStatus:
+UPDATE history_entry SET status = ? WHERE id = ?;
+
+historyAll:
+SELECT * FROM history_entry ORDER BY ts DESC LIMIT 500;
+
+historySent:
+SELECT * FROM history_entry WHERE direction = 'sent' ORDER BY ts DESC LIMIT 500;
+
+historyReceived:
+SELECT * FROM history_entry WHERE direction = 'received' ORDER BY ts DESC LIMIT 500;
+
+CREATE TABLE trusted_device (
+  device_id TEXT NOT NULL PRIMARY KEY,
+  name TEXT NOT NULL,
+  added_at INTEGER NOT NULL
+);
+
+insertTrusted:
+INSERT OR REPLACE INTO trusted_device (device_id, name, added_at) VALUES (?, ?, ?);
+
+deleteTrusted:
+DELETE FROM trusted_device WHERE device_id = ?;
+
+trustedAll:
+SELECT * FROM trusted_device ORDER BY added_at DESC;
+
+isTrusted:
+SELECT * FROM trusted_device WHERE device_id = ?;
+
+createTable kv (
+  k TEXT NOT NULL PRIMARY KEY,
+  v TEXT NOT NULL
+);
+
+putKv:
+INSERT OR REPLACE INTO kv (k, v) VALUES (?, ?);
+
+getKv:
+SELECT v FROM kv WHERE k = ?;
+
+allKv:
+SELECT * FROM kv;
