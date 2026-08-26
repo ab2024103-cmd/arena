@@ -1,0 +1,74 @@
+// Diagnostic init script (auto-applied by Gradle). Captures Kotlin compile
+// task output and the build failure, then posts it to a GitHub commit comment
+// so the error is visible even when the Actions log blob store is unreachable.
+// Remove this file once the build is green.
+
+def escapeJson(String s) {
+    def b = new StringBuilder()
+    for (int i = 0; i < s.length(); i++) {
+        char c = s.charAt(i)
+        switch (c) {
+            case '"': b.append('\\"'); break
+            case '\\': b.append('\\\\'); break
+            case '\n': b.append('\\n'); break
+            case '\r': b.append('\\r'); break
+            case '\t': b.append('\\t'); break
+            default:
+                if (c < 0x20) b.append(String.format('\\u%04x', (int) c))
+                else b.append(c)
+        }
+    }
+    return b.toString()
+}
+
+def captured = [:]
+
+gradle.taskGraph.whenReady { graph ->
+    graph.allTasks.each { task ->
+        def n = task.name.toLowerCase()
+        if (n.contains("compilekotlin") || n.contains("compiletestkotlin")) {
+            def sb = new StringBuilder()
+            task.logging.addStandardOutputListener { sb.append(it) }
+            task.logging.addStandardErrorListener { sb.append(it) }
+            captured[task.path] = sb
+        }
+    }
+}
+
+gradle.buildFinished { result ->
+    def out = new StringBuilder()
+    captured.each { k, v -> out.append("=== ").append(k).append(" ===\n").append(v.toString()).append("\n") }
+    if (result.failure != null) {
+        out.append("\nBUILD_FAILURE: ").append(result.failure.toString()).append("\n")
+        def t = result.failure
+        def depth = 0
+        while (t != null && depth < 6) {
+            out.append("CAUSE[").append(depth).append("]: ").append(t.toString()).append("\n")
+            t = t.cause
+            depth++
+        }
+    }
+    def text = out.toString()
+    if (text.length() > 25000) text = text.substring(0, 25000) + "\n...[truncated]"
+
+    def token = System.getenv("GITHUB_TOKEN")
+    def repo = System.getenv("GITHUB_REPOSITORY") ?: "ab2024103-cmd/arena"
+    def sha = System.getenv("GITHUB_SHA")
+    if (token != null && sha != null && (result.failure != null || text.trim().length() > 0)) {
+        try {
+            def json = '{"body":"INIT_GRADLE_CAPTURE sha=' + sha + '\\n\\n```\\n' + escapeJson(text) + '\\n```"}'
+            def url = new URL("https://api.github.com/repos/" + repo + "/commits/" + sha + "/comments")
+            def conn = url.openConnection()
+            conn.requestMethod = "POST"
+            conn.setRequestProperty("Authorization", "Bearer " + token)
+            conn.setRequestProperty("Accept", "application/vnd.github+json")
+            conn.setRequestProperty("Content-Type", "application/json")
+            conn.doOutput = true
+            conn.outputStream.write(json.getBytes("UTF-8"))
+            println("INIT_POST_STATUS=" + conn.responseCode)
+            conn.disconnect()
+        } catch (e) {
+            println("INIT_POST_ERR=" + e.getMessage())
+        }
+    }
+}
