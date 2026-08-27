@@ -1,3 +1,4 @@
+import java.io.ByteArrayOutputStream
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
@@ -106,7 +107,7 @@ tasks.register("packageReleaseAppImage") {
                     // jlink refuses an existing output directory.
                     runtimeDir.deleteRecursively()
                     println("packageReleaseAppImage: jlink-ing runtime from $jdkHome into ${dir.name}")
-                    val err = java.io.ByteArrayOutputStream()
+                    val err = ByteArrayOutputStream()
                     val result = exec {
                         commandLine(
                             jlink.absolutePath,
