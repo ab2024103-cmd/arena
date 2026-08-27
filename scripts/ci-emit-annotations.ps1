@@ -11,8 +11,8 @@ $picked = New-Object System.Collections.Generic.List[string]
 
 # RAW tail of the log minus stack frames / progress noise. 10 annotations of
 # <=460 chars carry roughly the whole failure block.
-$lines = Get-Content $Log -Tail 220 | Where-Object {
-    $_ -notmatch '^\s+at |^\s*\.\.\.[0-9]+ more|^Run with |^Get more help|^> Run with'
+$lines = Get-Content $Log -Tail 400 | Where-Object {
+    $_ -notmatch '^\s+at |^\s*\.\.\.[0-9]+ more|^Run with |^Get more help|^> Run with|^Note: |^Warning: |^The system is '
 }
 $tail = ($lines | Select-Object -Last 120) -join "`n"
 
