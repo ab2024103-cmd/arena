@@ -94,15 +94,12 @@ class WebConnectServer(
         if (engine != null) return
         pairing.newPairing()
         try {
-            val listenPort = port
-            val env = io.ktor.server.engine.applicationEngineEnvironment {
-                connector {
-                    host = "0.0.0.0"
-                    port = listenPort
-                }
-                module { webConnectModule(this@WebConnectServer) }
-            }
-            val e = embeddedServer(CIO, environment = env).start(wait = false)
+            val e = embeddedServer(
+                CIO,
+                port = port,
+                host = "0.0.0.0",
+                module = { webConnectModule(this@WebConnectServer) },
+            ).start(wait = false)
             engine = e
             _status.value = WebConnectStatus(running = true, port = port, pin = pairing.currentPin, lanIp = lanAddress())
         } catch (e: Exception) {
