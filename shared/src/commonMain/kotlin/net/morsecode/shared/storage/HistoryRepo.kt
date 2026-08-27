@@ -40,12 +40,12 @@ class HistoryRepo(private val db: MorseDb) {
         db.historyQueries.insertHistory(
             entry.id, entry.batchId, entry.peerDeviceId, entry.peerName, entry.filename,
             entry.sizeBytes, entry.direction, entry.kind, entry.mime, entry.source, entry.path, entry.status, entry.ts,
-        ).execute()
+        )
         refresh()
     }
 
     fun setStatus(id: String, status: String) {
-        db.historyQueries.updateHistoryStatus(status, id).execute()
+        db.historyQueries.updateHistoryStatus(status, id)
         refresh()
     }
 }

@@ -27,12 +27,12 @@ class ChatRepo(private val db: MorseDb) {
         db.morseQueries.insertChat(
             msg.messageId, msg.peerDeviceId, msg.text, msg.direction, msg.sentAt,
             if (msg.delivered) 1L else 0L,
-        ).execute()
+        )
         reloadAll()
     }
 
     fun markDelivered(messageId: String) {
-        db.morseQueries.markDelivered(messageId).execute()
+        db.morseQueries.markDelivered(messageId)
         reloadAll()
     }
 }

@@ -10,7 +10,7 @@ class TransferStateRepo(private val db: MorseDb) {
         filename: String, totalChunks: Int, sha256Full: String, status: String, direction: String,
     ) {
         db.morseQueries.upsertState(
-            transferId, fileId, batchId, peerDeviceId, filename, totalChunks,
+            transferId, fileId, batchId, peerDeviceId, filename, totalChunks.toLong(),
             "", sha256Full, status, direction, System.currentTimeMillis(),
         )
     }
@@ -38,5 +38,5 @@ class TransferStateRepo(private val db: MorseDb) {
         db.morseQueries.updateStatus(status, System.currentTimeMillis(), transferId, fileId)
 
     fun clear(transferId: String, fileId: String) =
-        db.morseQueries.deleteState(transferId, fileId).execute()
+        db.morseQueries.deleteState(transferId, fileId)
 }

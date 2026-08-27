@@ -7,7 +7,7 @@ class SettingsRepo(private val db: MorseDb) {
         db.historyQueries.getKv(key).executeAsOneOrNull()
 
     fun put(key: String, value: String) =
-        db.historyQueries.putKv(key, value).execute()
+        db.historyQueries.putKv(key, value)
 
     fun getInt(key: String, def: Int): Int = get(key)?.toIntOrNull() ?: def
     fun putInt(key: String, value: Int) = put(key, value.toString())
