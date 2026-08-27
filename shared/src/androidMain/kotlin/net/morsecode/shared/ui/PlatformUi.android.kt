@@ -1,7 +1,5 @@
 package net.morsecode.shared.ui
 
-import android.content.ClipData
-import android.content.ClipboardManager
 import android.graphics.Bitmap
 import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.Composable
@@ -12,12 +10,6 @@ import com.google.zxing.BarcodeFormat
 import com.google.zxing.EncodeHintType
 import com.google.zxing.common.BitMatrix
 import com.google.zxing.qrcode.QRCodeWriter
-import net.morsecode.shared.platform.AndroidEnv
-
-actual fun platformCopyToClipboard(text: String) {
-    val cm = AndroidEnv.appContext.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as ClipboardManager
-    cm.setPrimaryClip(ClipData.newPlainText("Morse Code", text))
-}
 
 @Composable
 actual fun AppBackHandler(enabled: Boolean, onBack: () -> Unit) {
