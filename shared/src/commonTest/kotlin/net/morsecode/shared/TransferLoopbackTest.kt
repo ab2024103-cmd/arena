@@ -110,10 +110,10 @@ class TransferLoopbackTest {
     }
 
     @Test
-    fun cleanTransferSucceeds() = runBlocking { loopback(2 * 1024 * 1024 + 137) }
+    fun cleanTransferSucceeds() = runBlocking<Unit> { loopback(2 * 1024 * 1024 + 137) }
 
     @Test
-    fun corruptedChunksAreRecoveredViaNack() = runBlocking {
+    fun corruptedChunksAreRecoveredViaNack() = runBlocking<Unit> {
         // corrupt ~every 3rd chunk: receiver NACKs, sender resends with fresh nonce
         loopback(1024 * 1024, corruptEveryNth = 3)
     }
