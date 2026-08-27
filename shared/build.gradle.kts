@@ -1,3 +1,4 @@
+import java.time.Duration
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
@@ -93,7 +94,7 @@ sqldelight {
 
 // Safety net: a hung test must not stall the whole CI run.
 tasks.withType<Test> {
-    timeout.set(java.time.Duration.ofMinutes(5))
+    timeout.set(Duration.ofMinutes(5))
     testLogging {
         events("failed", "skipped")
         setExceptionFormat("full")
