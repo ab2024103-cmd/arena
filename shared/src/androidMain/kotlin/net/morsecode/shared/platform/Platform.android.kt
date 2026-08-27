@@ -85,17 +85,17 @@ class FileAdapterAndroid(private val context: Context) : FileAdapter {
                 ?: error("MediaStore insert failed (insufficient_storage)")
             val pfd: ParcelFileDescriptor = resolver.openFileDescriptor(itemUri, "rw")
                 ?: error("cannot open destination")
-            val raf = java.io.RandomAccessFile(pfd.fileDescriptor, "rw")
-            try { raf.setLength(sizeBytes) } catch (_: Exception) { }
+            val channel = java.io.FileOutputStream(pfd.fileDescriptor).channel
+            try { channel.truncate(sizeBytes) } catch (_: Exception) { }
             object : IncomingSink {
                 override val displayPath: String = "Download/MorseCode/$safeName"
                 override fun writeAt(offset: Long, bytes: ByteArray) {
-                    raf.seek(offset)
-                    raf.write(bytes)
+                    channel.position(offset)
+                    channel.write(java.nio.ByteBuffer.wrap(bytes))
                 }
                 override fun complete(ok: Boolean) {
-                    try { raf.close() } catch (_: Exception) { }
-                    try { pfd?.close() } catch (_: Exception) { }
+                    try { channel.close() } catch (_: Exception) { }
+                    try { pfd.close() } catch (_: Exception) { }
                     try {
                         values.clear()
                         values.put(MediaStore.Downloads.IS_PENDING, if (ok) 0 else 1)

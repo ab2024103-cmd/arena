@@ -266,7 +266,8 @@ if [ -n "$CI_LOG" ]; then
     if [ "$GRADLEW_STATUS" != "0" ]; then
         {
             grep -A1 -E ' FAILED( |$)' "$CI_LOG" 2>/dev/null | head -n 16
-            grep -E "^e: " "$CI_LOG" 2>/dev/null | head -n 12
+            grep -E "^e: " "$CI_LOG" 2>/dev/null | head -n 10
+            grep -A5 "None of the following candidates" "$CI_LOG" 2>/dev/null | head -n 14
             grep -E '^error' "$CI_LOG" 2>/dev/null | head -n 4
             awk '/^FAILURE: Build failed/{flag=1; print; next} flag' "$CI_LOG" 2>/dev/null | grep -vE '^\s+at |^Run with|^Get more help' | head -n 12
         } > "$CI_LOG.picked" 2>/dev/null
