@@ -103,8 +103,11 @@ tasks.register("packageReleaseAppImage") {
                     }
                     val isWindows = System.getProperty("os.name").lowercase().contains("windows")
                     val jlink = jdkHome.resolve(if (isWindows) "bin/jlink.exe" else "bin/jlink")
+                    // jlink refuses an existing output directory.
+                    runtimeDir.deleteRecursively()
                     println("packageReleaseAppImage: jlink-ing runtime from $jdkHome into ${dir.name}")
-                    exec {
+                    val err = java.io.ByteArrayOutputStream()
+                    val result = exec {
                         commandLine(
                             jlink.absolutePath,
                             "--add-modules",
@@ -114,6 +117,13 @@ tasks.register("packageReleaseAppImage") {
                             "--output", runtimeDir.absolutePath,
                             "--no-header-files", "--no-man-pages", "--compress=2",
                         )
+                        errorOutput = err
+                        isIgnoreExitValue = true
+                    }
+                    if (result.exitValue != 0) {
+                        val msg = err.toString().trim().take(600)
+                        println("::error::packageReleaseAppImage: jlink failed (exit ${result.exitValue}): $msg")
+                        throw GradleException("packageReleaseAppImage: jlink failed (exit ${result.exitValue}): $msg")
                     }
                 }
             }
