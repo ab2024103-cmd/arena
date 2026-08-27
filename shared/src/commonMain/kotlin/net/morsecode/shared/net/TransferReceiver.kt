@@ -81,7 +81,7 @@ class TransferReceiver(
             }
 
             // 3. chunk loop
-            var pendingFiles = sinks.keys.toHashSet() - earlyDone
+            val pendingFiles = HashSet<String>(sinks.keys).apply { removeAll(earlyDone) }
             while (pendingFiles.isNotEmpty()) {
                 val msg = incoming.receiveCatching().getOrNull() ?: break
                 when (msg.type) {

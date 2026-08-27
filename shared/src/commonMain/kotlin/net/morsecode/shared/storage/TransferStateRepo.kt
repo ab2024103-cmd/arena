@@ -9,21 +9,21 @@ class TransferStateRepo(private val db: MorseDb) {
         transferId: String, fileId: String, batchId: String?, peerDeviceId: String,
         filename: String, totalChunks: Int, sha256Full: String, status: String, direction: String,
     ) {
-        db.transferStateQueries.upsertState(
+        db.morseQueries.upsertState(
             transferId, fileId, batchId, peerDeviceId, filename, totalChunks,
             "", sha256Full, status, direction, System.currentTimeMillis(),
         )
     }
 
     fun bitmap(transferId: String, fileId: String): String =
-        db.transferStateQueries.findState(transferId, fileId).executeAsOneOrNull()?.verified_chunks_bitmap ?: ""
+        db.morseQueries.findState(transferId, fileId).executeAsOneOrNull()?.verified_chunks_bitmap ?: ""
 
     fun markVerified(transferId: String, fileId: String, chunkIndex: Int, totalChunks: Int) {
         val cur = bitmap(transferId, fileId)
         val sb = StringBuilder(cur)
         while (sb.length <= chunkIndex) sb.append('0')
         sb.setCharAt(chunkIndex, '1')
-        db.transferStateQueries.updateBitmap(sb.toString(), System.currentTimeMillis(), transferId, fileId)
+        db.morseQueries.updateBitmap(sb.toString(), System.currentTimeMillis(), transferId, fileId)
     }
 
     /** Index of the last contiguous verified chunk, or -1. */
@@ -35,8 +35,8 @@ class TransferStateRepo(private val db: MorseDb) {
     }
 
     fun setStatus(transferId: String, fileId: String, status: String) =
-        db.transferStateQueries.updateStatus(status, System.currentTimeMillis(), transferId, fileId)
+        db.morseQueries.updateStatus(status, System.currentTimeMillis(), transferId, fileId)
 
     fun clear(transferId: String, fileId: String) =
-        db.transferStateQueries.deleteState(transferId, fileId).execute()
+        db.morseQueries.deleteState(transferId, fileId).execute()
 }

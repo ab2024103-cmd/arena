@@ -12,19 +12,19 @@ class ChatRepo(private val db: MorseDb) {
     init { reloadAll() }
 
     fun reloadAll() {
-        val peers = db.chatQueries.chatPeers().executeAsList().map { it.peer_device_id }
+        val peers = db.morseQueries.chatPeers().executeAsList()
         val map = HashMap<String, List<ChatMessage>>()
         for (p in peers) map[p] = thread(p)
         _threads.value = map
     }
 
     fun thread(peerDeviceId: String): List<ChatMessage> =
-        db.chatQueries.chatForPeer(peerDeviceId).executeAsList().map {
+        db.morseQueries.chatForPeer(peerDeviceId).executeAsList().map {
             ChatMessage(it.message_id, it.peer_device_id, it.text, it.direction, it.sent_at, it.delivered == 1L)
         }
 
     fun insert(msg: ChatMessage) {
-        db.chatQueries.insertChat(
+        db.morseQueries.insertChat(
             msg.messageId, msg.peerDeviceId, msg.text, msg.direction, msg.sentAt,
             if (msg.delivered) 1L else 0L,
         ).execute()
@@ -32,7 +32,7 @@ class ChatRepo(private val db: MorseDb) {
     }
 
     fun markDelivered(messageId: String) {
-        db.chatQueries.markDelivered(messageId).execute()
+        db.morseQueries.markDelivered(messageId).execute()
         reloadAll()
     }
 }

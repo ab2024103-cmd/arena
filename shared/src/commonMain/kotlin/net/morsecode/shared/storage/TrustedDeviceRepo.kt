@@ -13,20 +13,20 @@ class TrustedDeviceRepo(private val db: MorseDb) {
     init { refresh() }
 
     fun refresh() {
-        _devices.value = db.trustedDeviceQueries.trustedAll().executeAsList()
+        _devices.value = db.historyQueries.trustedAll().executeAsList()
             .map { TrustedDevice(it.device_id, it.name, it.added_at) }
     }
 
     fun isTrusted(deviceId: String): Boolean =
-        db.trustedDeviceQueries.isTrusted(deviceId).executeAsOneOrNull() != null
+        db.historyQueries.isTrusted(deviceId).executeAsOneOrNull() != null
 
     fun trust(deviceId: String, name: String) {
-        db.trustedDeviceQueries.insertTrusted(deviceId, name, System.currentTimeMillis()).execute()
+        db.historyQueries.insertTrusted(deviceId, name, System.currentTimeMillis()).execute()
         refresh()
     }
 
     fun forget(deviceId: String) {
-        db.trustedDeviceQueries.deleteTrusted(deviceId).execute()
+        db.historyQueries.deleteTrusted(deviceId).execute()
         refresh()
     }
 }
