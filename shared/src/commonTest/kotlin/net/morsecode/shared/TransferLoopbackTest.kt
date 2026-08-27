@@ -95,10 +95,16 @@ class TransferLoopbackTest {
                 data.copyOfRange(from.toInt(), to.toInt())
             },
             onProgress = { },
-            chunkTransformForTest = if (corruptEveryNth > 0) { idx, bytes ->
-                if (idx % corruptEveryNth == 0 && bytes.isNotEmpty()) {
-                    bytes.copyOf().also { it[0] = (it[0] + 1).toByte() }
-                } else bytes
+            chunkTransformForTest = if (corruptEveryNth > 0) {
+                // Corrupt only the FIRST attempt of each eligible chunk so the
+                // clean resend can verify (exercises the NACK -> fresh-nonce
+                // resend path instead of an infinite NACK loop).
+                val corrupted = HashSet<Int>()
+                { idx, bytes ->
+                    if (idx % corruptEveryNth == 0 && bytes.isNotEmpty() && corrupted.add(idx)) {
+                        bytes.copyOf().also { it[0] = (it[0] + 1).toByte() }
+                    } else bytes
+                }
             } else null,
         )
         val result = sender.run()
