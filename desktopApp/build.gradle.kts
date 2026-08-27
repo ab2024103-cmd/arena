@@ -38,3 +38,12 @@ compose.desktop {
         }
     }
 }
+
+// The CI workflow requests the historical task name "packageReleaseAppImage",
+// which no longer exists in Compose Desktop 1.7. Register it as an alias for
+// the release app-image task (falling back to the debug-variant task).
+tasks.register("packageReleaseAppImage") {
+    group = "compose desktop"
+    description = "Alias for createReleaseDistributable/createDistributable (CI compatibility)."
+    dependsOn(tasks.findByName("createReleaseDistributable") ?: tasks.named("createDistributable"))
+}
