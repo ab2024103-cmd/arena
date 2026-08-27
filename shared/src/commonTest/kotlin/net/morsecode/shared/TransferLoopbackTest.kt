@@ -29,12 +29,14 @@ class TransferLoopbackTest {
     private val selfA = SelfProfile("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "Sender", "android")
     private val selfB = SelfProfile("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "Receiver", "windows")
 
+    private val chunkSize = 256 * 1024 // small chunks so many fit the window quickly
+
     /** In-memory sink collecting random-access writes. */
-    private class MemorySink(val size: Long) : ChunkSink {
+    private class MemorySink(val size: Long, val chunkSize: Int) : ChunkSink {
         val buf = ByteArray(size.toInt())
         override val displayPath: String = "memory://file"
-        override fun writeAt(offset: Long, bytes: ByteArray) {
-            bytes.copyInto(buf, offset.toInt())
+        override fun writeAt(chunkIndex: Int, bytes: ByteArray) {
+            bytes.copyInto(buf, chunkIndex * chunkSize)
         }
         override fun complete(ok: Boolean) { }
     }
@@ -56,7 +58,6 @@ class TransferLoopbackTest {
         corruptEveryNth: Int = 0,
     ): Boolean {
         val data = ByteArray(fileSize) { Random.Default.nextInt(0, 255).toByte() }
-        val chunkSize = 256 * 1024 // small chunks so many fit the window quickly
         val totalChunks = (fileSize + chunkSize - 1) / chunkSize
         val fileId = Crypto.randomId()
         val manifest = FileManifest(
@@ -69,7 +70,7 @@ class TransferLoopbackTest {
 
         val server = ServerSocket(0)
         val port = server.localPort
-        val sink = MemorySink(fileSize.toLong())
+        val sink = MemorySink(fileSize.toLong(), chunkSize)
         val response = TransferResponse(
             transfer_id = request.transfer_id, decision = "accept_all",
             accepted_file_ids = listOf(fileId), rejected_file_ids = emptyList(), resume_offsets = emptyMap(),
