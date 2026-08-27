@@ -49,6 +49,7 @@ import net.morsecode.shared.ui.theme.ThemeMode
 import net.morsecode.shared.webconnect.SharedSessionFile
 import net.morsecode.shared.webconnect.WebConnectServer
 import net.morsecode.shared.webconnect.WsChatMsg
+import kotlinx.coroutines.delay
 
 /** A transfer awaiting the user's accept/reject decision. */
 data class IncomingRequestState(

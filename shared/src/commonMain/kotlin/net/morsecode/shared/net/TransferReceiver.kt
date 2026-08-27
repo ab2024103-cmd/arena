@@ -2,6 +2,7 @@ package net.morsecode.shared.net
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.channels.Channel
 
 /** Random-access sink for one incoming file (Section 6 receiver algorithm). */
 interface ChunkSink {

@@ -37,6 +37,7 @@ import net.morsecode.shared.ui.AppViewModel
 import net.morsecode.shared.ui.components.DeviceListItem
 import net.morsecode.shared.ui.components.EmptyState
 import net.morsecode.shared.ui.formatBytes
+import kotlinx.coroutines.launch
 
 @Composable
 fun SendScreen(vm: AppViewModel, onDone: () -> Unit) {
