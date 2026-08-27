@@ -53,6 +53,23 @@ class TransferLoopbackTest {
         }
     }
 
+    /**
+     * Corrupts only the FIRST attempt of each eligible chunk so the clean
+     * resend can verify (exercises the NACK -> fresh-nonce resend path
+     * instead of an infinite NACK loop).
+     */
+    private fun makeCorruptor(corruptEveryNth: Int): ((Int, ByteArray) -> ByteArray)? {
+        if (corruptEveryNth <= 0) return null
+        val corrupted = HashSet<Int>()
+        return { idx, bytes ->
+            if (idx % corruptEveryNth == 0 && bytes.isNotEmpty() && corrupted.add(idx)) {
+                bytes.copyOf().also { it[0] = (it[0] + 1).toByte() }
+            } else {
+                bytes
+            }
+        }
+    }
+
     private suspend fun loopback(
         fileSize: Int,
         corruptEveryNth: Int = 0,
@@ -95,17 +112,7 @@ class TransferLoopbackTest {
                 data.copyOfRange(from.toInt(), to.toInt())
             },
             onProgress = { },
-            chunkTransformForTest = if (corruptEveryNth > 0) {
-                // Corrupt only the FIRST attempt of each eligible chunk so the
-                // clean resend can verify (exercises the NACK -> fresh-nonce
-                // resend path instead of an infinite NACK loop).
-                val corrupted = HashSet<Int>()
-                { idx, bytes ->
-                    if (idx % corruptEveryNth == 0 && bytes.isNotEmpty() && corrupted.add(idx)) {
-                        bytes.copyOf().also { it[0] = (it[0] + 1).toByte() }
-                    } else bytes
-                }
-            } else null,
+            chunkTransformForTest = makeCorruptor(corruptEveryNth),
         )
         val result = sender.run()
         assertTrue(result.isSuccess, "sender failed: ${result.exceptionOrNull()}")
