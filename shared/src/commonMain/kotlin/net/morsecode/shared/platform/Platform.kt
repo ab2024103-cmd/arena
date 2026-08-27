@@ -3,6 +3,7 @@ package net.morsecode.shared.platform
 import net.morsecode.shared.storage.PlatformDeps
 
 expect val isDesktopPlatform: Boolean
+expect fun platformCopyToClipboard(text: String)
 expect fun platformDeviceType(): String
 expect class PlatformContext
 expect fun buildPlatformDeps(context: PlatformContext?): PlatformDeps

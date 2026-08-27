@@ -6,6 +6,7 @@ import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.content.PartData
 import io.ktor.http.content.forEachPart
+import io.ktor.utils.io.core.readBytes
 import net.morsecode.shared.storage.ServiceLocator
 import io.ktor.server.application.Application
 import io.ktor.server.application.ApplicationCall
@@ -115,7 +116,7 @@ fun Application.webConnectModule(server: WebConnectServer) {
             multipart.forEachPart { part: PartData ->
                 if (part is PartData.FileItem) {
                     name = part.originalFileName ?: name
-                    val bytes = part.streamProvider().readBytes()
+                    val bytes = part.provider().readBytes()
                     val sink = ServiceLocator.deps.fileAdapter.incomingSink(name, bytes.size.toLong(), "application/octet-stream")
                     try {
                         sink.writeAt(0, bytes)

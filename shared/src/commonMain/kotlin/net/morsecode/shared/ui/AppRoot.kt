@@ -33,6 +33,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import net.morsecode.shared.media.AudioItem
 import net.morsecode.shared.media.PhotoItem
+import net.morsecode.shared.platform.platformCopyToClipboard
 import net.morsecode.shared.ui.components.MiniAudioPlayerBar
 import net.morsecode.shared.ui.components.TransferProgressBar
 import net.morsecode.shared.ui.screens.AudioPlayerScreen
@@ -271,5 +272,3 @@ private fun SendProgressOverlay(vm: AppViewModel) {
 fun copyToClipboard(text: String) {
     platformCopyToClipboard(text)
 }
-
-expect fun platformCopyToClipboard(text: String)

@@ -19,7 +19,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import net.morsecode.db.MorseDb
 import net.morsecode.shared.media.AppInfo
+import net.morsecode.shared.media.MediaLibraryDesktop
 import net.morsecode.shared.player.AudioPlaybackController
+import net.morsecode.shared.player.AudioPlaybackControllerDesktop
 import net.morsecode.shared.storage.PlatformDeps
 
 actual val isDesktopPlatform: Boolean = true
