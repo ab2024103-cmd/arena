@@ -48,7 +48,7 @@ SELECT * FROM trusted_device ORDER BY added_at DESC;
 isTrusted:
 SELECT * FROM trusted_device WHERE device_id = ?;
 
-createTable kv (
+CREATE TABLE kv (
   k TEXT NOT NULL PRIMARY KEY,
   v TEXT NOT NULL
 );

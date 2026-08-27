@@ -10,7 +10,7 @@ if (-not (Test-Path $Log)) { return }
 $picked = New-Object System.Collections.Generic.List[string]
 
 # Kotlin compiler errors first (most actionable).
-Select-String -Path $Log -Pattern '^e: ' | Select-Object -First 4 | ForEach-Object { $picked.Add($_.Line) }
+Select-String -Path $Log -Pattern '^(e: |error)' | Select-Object -First 6 | ForEach-Object { $picked.Add($_.Line) }
 
 # Then the Gradle failure summary (task name + root causes).
 $failureTail = Get-Content $Log | Select-String -Pattern '^FAILURE: Build failed' -Context 0,45

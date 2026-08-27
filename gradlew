@@ -266,6 +266,7 @@ if [ -n "$CI_LOG" ]; then
     if [ "$GRADLEW_STATUS" != "0" ]; then
         {
             grep -E '^e: ' "$CI_LOG" 2>/dev/null | head -n 4
+            grep -E '^error' "$CI_LOG" 2>/dev/null | head -n 6
             awk '/^FAILURE: Build failed/{flag=1} flag' "$CI_LOG" 2>/dev/null | head -n 45
         } > "$CI_LOG.picked" 2>/dev/null
         # Fallback: nothing matched -> raw tail so there is always a breadcrumb.
