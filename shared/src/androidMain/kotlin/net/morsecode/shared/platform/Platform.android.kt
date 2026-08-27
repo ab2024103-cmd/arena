@@ -157,6 +157,11 @@ class FileAdapterAndroid(private val context: Context) : FileAdapter {
     override fun receivedDir(): String = Environment.DIRECTORY_DOWNLOADS + "/MorseCode"
 }
 
+actual fun platformCopyToClipboard(text: String) {
+    val cm = AndroidEnv.appContext.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+    cm.setPrimaryClip(ClipData.newPlainText("Morse Code", text))
+}
+
 actual suspend fun extractAppApk(app: AppInfo): PickedFile? = ApkExtractor.extract(AndroidEnv.appContext, app)
 
 actual fun installApk(path: String) {
