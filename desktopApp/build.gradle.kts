@@ -44,6 +44,12 @@ compose.desktop {
     }
 }
 
+afterEvaluate {
+    tasks.findByName("createRuntimeImage")?.let { rt ->
+        tasks.named("packageReleaseAppImage") { dependsOn(rt) }
+    }
+}
+
 // The CI workflow requests the historical task name "packageReleaseAppImage",
 // which no longer exists in Compose Desktop 1.7. Register it as an alias for
 // the release app-image task (falling back to the debug-variant task), and
@@ -52,9 +58,6 @@ tasks.register("packageReleaseAppImage") {
     group = "compose desktop"
     description = "Alias for createReleaseDistributable/createDistributable (CI compatibility)."
     dependsOn(tasks.findByName("createReleaseDistributable") ?: tasks.named("createDistributable"))
-    // Build the jlink runtime image (binaries/<variant>/runtime) too; nothing
-    // else in this pipeline triggers it.
-    tasks.findByName("createRuntimeImage")?.let { dependsOn(it) }
     finalizedBy("validateAppImage")
     doLast {
         val binaries = layout.projectDirectory.dir("build/compose/binaries").asFile
@@ -87,11 +90,32 @@ tasks.register("packageReleaseAppImage") {
 
             val runtimeDir = dir.resolve("runtime")
             if (!runtimeDir.resolve("bin/java.exe").isFile) {
-                if (runtimeSource == null) {
-                    throw GradleException("packageReleaseAppImage: no runtime image found to bundle into ${dir.absolutePath}")
+                val source = runtimeSource
+                if (source != null) {
+                    println("packageReleaseAppImage: bundling runtime from ${source.absolutePath} into ${dir.name}")
+                    source.copyRecursively(runtimeDir, overwrite = true)
+                } else {
+                    // Fallback: jlink a runtime straight from the build JDK.
+                    val jdkHome = File(System.getProperty("java.home"))
+                    val jmods = jdkHome.resolve("jmods")
+                    if (!jmods.isDirectory) {
+                        throw GradleException("packageReleaseAppImage: no runtime image to bundle and no jmods under $jdkHome")
+                    }
+                    val isWindows = System.getProperty("os.name").lowercase().contains("windows")
+                    val jlink = jdkHome.resolve(if (isWindows) "bin/jlink.exe" else "bin/jlink")
+                    println("packageReleaseAppImage: jlink-ing runtime from $jdkHome into ${dir.name}")
+                    exec {
+                        commandLine(
+                            jlink.absolutePath,
+                            "--add-modules",
+                            "java.desktop,java.sql,java.naming,java.management,java.instrument," +
+                                "java.logging,java.xml,jdk.unsupported,jdk.crypto.ec,jdk.crypto.cryptoki," +
+                                "jdk.zipfs,jdk.management",
+                            "--output", runtimeDir.absolutePath,
+                            "--no-header-files", "--no-man-pages", "--compress=2",
+                        )
+                    }
                 }
-                println("packageReleaseAppImage: bundling runtime from ${runtimeSource.absolutePath} into ${dir.name}")
-                runtimeSource.copyRecursively(runtimeDir, overwrite = true)
             }
         }
     }
