@@ -9,45 +9,26 @@ if (-not (Test-Path $Log)) { return }
 
 $picked = New-Object System.Collections.Generic.List[string]
 
-# Failing tests first (name + exception message line).
-Select-String -Path $Log -Pattern ' FAILED( |$)' -Context 0,1 | Select-Object -First 8 | ForEach-Object {
-    $picked.Add($_.Line)
-    if ($_.Context.PostContext) { $picked.Add([string]$_.Context.PostContext[0]) }
+# RAW tail of the log minus stack frames / progress noise. 10 annotations of
+# <=460 chars carry roughly the whole failure block.
+$lines = Get-Content $Log -Tail 220 | Where-Object {
+    $_ -notmatch '^\s+at |^\s*\.\.\.[0-9]+ more|^Run with |^Get more help|^> Run with'
 }
-
-# Kotlin compiler errors next (most actionable).
-Select-String -Path $Log -Pattern '^(e: |error)' | Select-Object -First 6 | ForEach-Object { $picked.Add($_.Line) }
-
-# Then the Gradle failure summary: only the meaningful lines (task names,
-# causes, descriptions) - never stack frames.
-$failureTail = Get-Content $Log | Select-String -Pattern '^FAILURE: Build failed' -Context 0,45
-if ($failureTail) {
-    $failureTail[0].Context.PostContext | Where-Object {
-        $_ -match '^(FAILURE:|\* What went wrong:|\* Try:|> |Execution failed for task|Details:|e: |Caused by:|\* Exception is:)' -and
-        $_ -notmatch '^\s+at '
-    } | Select-Object -First 14 | ForEach-Object { $picked.Add($_) }
-}
-
-if ($picked.Count -eq 0) {
-    Get-Content $Log -Tail 15 | Where-Object { $_ -notmatch '^\s+at ' } | ForEach-Object { $picked.Add($_) }
-}
-
-$text = [string]::Join("`n", $picked)
-if ($text.Length -gt 4800) { $text = $text.Substring($text.Length - 4800) }
+$tail = ($lines | Select-Object -Last 120) -join "`n"
 
 # Chunk into <=460-char pieces (annotation messages are size-capped).
 $chunks = New-Object System.Collections.Generic.List[string]
 $cur = ""
-foreach ($line in ($text -split "`n")) {
+foreach ($line in ($tail -split "`n")) {
     $line = $line.TrimEnd("`r")
-    if (($cur.Length + $line.Length + 1) -gt 460 -and $cur.Length -gt 0) {
+    if (($cur.Length + $line.Length + 1) -gt 440 -and $cur.Length -gt 0) {
         $chunks.Add($cur)
         $cur = ""
     }
-    while ($line.Length -gt 460) {
+    while ($line.Length -gt 440) {
         if ($cur.Length -gt 0) { $chunks.Add($cur); $cur = "" }
-        $chunks.Add($line.Substring(0, 460))
-        $line = $line.Substring(460)
+        $chunks.Add($line.Substring(0, 440))
+        $line = $line.Substring(440)
     }
     if ($cur.Length -gt 0) { $cur += "`n" }
     $cur += $line
