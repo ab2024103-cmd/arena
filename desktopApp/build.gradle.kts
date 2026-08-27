@@ -54,32 +54,49 @@ tasks.register("packageReleaseAppImage") {
     dependsOn(tasks.findByName("createReleaseDistributable") ?: tasks.named("createDistributable"))
     finalizedBy("validateAppImage")
     doLast {
-        // Ship a debug-console launcher inside the app image: running it opens
-        // a console that shows any startup errors the windowless jpackage
-        // launcher would swallow.
         val binaries = layout.projectDirectory.dir("build/compose/binaries").asFile
-        binaries.walkTopDown()
+        val appDirs = binaries.walkTopDown()
             .filter { it.isDirectory && it.name == "MorseCode" && it.parentFile?.name == "app" }
-            .forEach { dir ->
-                dir.resolve("Start MorseCode (debug console).bat").writeText(
-                    "@echo off\r\n" +
-                        "rem Runs Morse Code with a visible console so startup errors are shown.\r\n" +
-                        "set \"DIR=%~dp0\"\r\n" +
-                        "\"%DIR%runtime\\bin\\java.exe\" -cp \"%DIR%app\\*\" net.morsecode.desktop.MainKt %*\r\n" +
-                        "echo.\r\n" +
-                        "echo Morse Code exited with code %ERRORLEVEL%.\r\n" +
-                        "pause\r\n",
-                )
-                println("packageReleaseAppImage: wrote debug launcher into ${dir.absolutePath}")
+            .toList()
+
+        // Compose's createDistributable/createReleaseDistributable prepare the
+        // launcher + jars but do NOT embed the jlink runtime (that happens in
+        // the jpackage packaging tasks we are aliasing for). Bundle it here so
+        // the portable app image is self-contained.
+        val runtimeSource = appDirs.firstOrNull { it.resolve("runtime/bin/java.exe").isFile }
+            ?.resolve("runtime")
+            ?: binaries.walkTopDown()
+                .filter { it.isDirectory && it.name == "runtime" && it.resolve("bin/java.exe").isFile }
+                .firstOrNull()
+
+        for (dir in appDirs) {
+            // Debug-console launcher so users can see startup errors.
+            dir.resolve("Start MorseCode (debug console).bat").writeText(
+                "@echo off\r\n" +
+                    "rem Runs Morse Code with a visible console so startup errors are shown.\r\n" +
+                    "set \"DIR=%~dp0\"\r\n" +
+                    "\"%DIR%runtime\\bin\\java.exe\" -cp \"%DIR%app\\*\" net.morsecode.desktop.MainKt %*\r\n" +
+                    "echo.\r\n" +
+                    "echo Morse Code exited with code %ERRORLEVEL%.\r\n" +
+                    "pause\r\n",
+            )
+            println("packageReleaseAppImage: wrote debug launcher into ${dir.absolutePath}")
+
+            val runtimeDir = dir.resolve("runtime")
+            if (!runtimeDir.resolve("bin/java.exe").isFile) {
+                if (runtimeSource == null) {
+                    throw GradleException("packageReleaseAppImage: no runtime image found to bundle into ${dir.absolutePath}")
+                }
+                println("packageReleaseAppImage: bundling runtime from ${runtimeSource.absolutePath} into ${dir.name}")
+                runtimeSource.copyRecursively(runtimeDir, overwrite = true)
             }
+        }
     }
 }
 
-// Verifies the app image the portable zip is built from: launcher, config,
-// bundled JRE, and every classpath entry present. Fails the build otherwise.
 tasks.register("validateAppImage") {
     group = "compose desktop"
-    description = "Checks the packaged app image is complete and launchable."
+    description = "Checks every packaged app image is complete and launchable."
     doLast {
         val binaries = layout.projectDirectory.dir("build/compose/binaries").asFile
         val appDirs = binaries.walkTopDown()
@@ -87,46 +104,49 @@ tasks.register("validateAppImage") {
             .toList()
             .sortedBy { it.absolutePath }
         if (appDirs.isEmpty()) throw GradleException("validateAppImage: no app image found under $binaries")
-        val dir = appDirs.first()
-        val problems = mutableListOf<String>()
 
-        val launcher = dir.resolve("MorseCode.exe")
-        if (!launcher.isFile) problems.add("missing launcher: ${launcher.relativeTo(dir)}")
-        val cfg = dir.resolve("app/MorseCode.cfg")
-        if (!cfg.isFile) {
-            problems.add("missing app/MorseCode.cfg")
-        } else {
-            val entries = cfg.readLines()
-                .filter { it.startsWith("app.classpath=") }
-                .flatMap { it.removePrefix("app.classpath=").split(";") }
-                .filter { it.isNotBlank() }
-            val appRoot = dir.resolve("app")
-            for (e in entries) {
-                // jpackage cfg entries may use the $APPDIR placeholder (expanded
-                // by the launcher at runtime).
-                val resolved = if (e.startsWith("$")) {
-                    appRoot.resolve(e.substringAfter('\\').replace('\\', '/'))
-                } else {
-                    val f = File(e)
-                    if (f.isAbsolute) f else appRoot.resolve(e)
-                }
-                if (!resolved.exists()) problems.add("cfg classpath entry missing: $e")
+        var anyProblems = false
+        for (dir in appDirs) {
+            val problems = checkAppImage(dir)
+            if (problems.isNotEmpty()) {
+                anyProblems = true
+                problems.forEach { println("::error::validateAppImage[${dir.parentFile.parentFile.name}]: $it") }
+                println("validateAppImage[${dir.parentFile.parentFile.name}] FAILED: " + problems.joinToString(" | "))
+            } else {
+                println("validateAppImage[${dir.parentFile.parentFile.name}]: OK (${dir.walkTopDown().count()} files)")
             }
-            if (entries.isEmpty()) problems.add("cfg has no app.classpath entries")
         }
-        val javaExe = dir.resolve("runtime/bin/java.exe")
-        if (!javaExe.isFile) problems.add("bundled JRE missing runtime/bin/java.exe")
-        val appJarCount = dir.resolve("app").listFiles()?.count { it.isFile && it.extension == "jar" } ?: 0
-        if (appJarCount == 0) problems.add("no jars in app/")
-
-        println("validateAppImage: checking ${dir.absolutePath} (found ${appDirs.size} app image(s): ${appDirs.map { it.parentFile.parentFile.name }})")
-        println("validateAppImage: jars=$appJarCount totalFiles=${dir.walkTopDown().count()}")
-        if (problems.isNotEmpty()) {
-            // Emit each problem as a workflow annotation directly (the runner
-            // parses these from task output), plus a one-line summary.
-            problems.take(10).forEach { println("::error::validateAppImage: $it") }
-            throw GradleException("validateAppImage FAILED: " + problems.joinToString(" | "))
-        }
-        println("validateAppImage: OK")
+        if (anyProblems) throw GradleException("validateAppImage FAILED (see annotations above)")
     }
+}
+
+fun checkAppImage(dir: File): List<String> = buildList {
+    val launcher = dir.resolve("MorseCode.exe")
+    if (!launcher.isFile) add("missing launcher: MorseCode.exe")
+    val cfg = dir.resolve("app/MorseCode.cfg")
+    if (!cfg.isFile) {
+        add("missing app/MorseCode.cfg")
+    } else {
+        val entries = cfg.readLines()
+            .filter { it.startsWith("app.classpath=") }
+            .flatMap { it.removePrefix("app.classpath=").split(";") }
+            .filter { it.isNotBlank() }
+        val appRoot = dir.resolve("app")
+        for (e in entries) {
+            // jpackage cfg entries may use the $APPDIR placeholder (expanded
+            // by the launcher at runtime).
+            val resolved = if (e.startsWith("$")) {
+                appRoot.resolve(e.substringAfter('\\').replace('\\', '/'))
+            } else {
+                val f = File(e)
+                if (f.isAbsolute) f else appRoot.resolve(e)
+            }
+            if (!resolved.exists()) add("cfg classpath entry missing: $e")
+        }
+        if (entries.isEmpty()) add("cfg has no app.classpath entries")
+    }
+    val javaExe = dir.resolve("runtime/bin/java.exe")
+    if (!javaExe.isFile) add("bundled JRE missing runtime/bin/java.exe")
+    val appJarCount = dir.resolve("app").listFiles()?.count { it.isFile && it.extension == "jar" } ?: 0
+    if (appJarCount == 0) add("no jars in app/")
 }
