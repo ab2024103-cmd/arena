@@ -62,3 +62,11 @@ foreach ($c in $chunks) {
         $i++
     }
 }
+
+# Raw tail -> job summary (public run page) for full-context debugging.
+if ($env:GITHUB_STEP_SUMMARY) {
+    Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "### gradlew failure log tail"
+    Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value '```text'
+    Get-Content $Log -Tail 130 | ForEach-Object { Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value $_ }
+    Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value '```'
+}

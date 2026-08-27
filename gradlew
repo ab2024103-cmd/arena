@@ -281,6 +281,15 @@ if [ -n "$CI_LOG" ]; then
         head -c 4800 "$CI_LOG.picked" | fold -w 460 -s | grep -v '^$' | head -n 10 | while IFS= read -r ann_line; do
             printf '::error::%s\n' "$ann_line"
         done
+        # Raw tail -> job summary (public run page) for full-context debugging.
+        if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
+            {
+                echo "### gradlew failure log tail"
+                echo '```'
+                tail -n 130 "$CI_LOG"
+                echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+        fi
     fi
     rm -f "$CI_LOG" "$CI_LOG.exit" "$CI_LOG.picked"
     exit "$GRADLEW_STATUS"
