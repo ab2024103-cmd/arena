@@ -53,6 +53,26 @@ tasks.register("packageReleaseAppImage") {
     description = "Alias for createReleaseDistributable/createDistributable (CI compatibility)."
     dependsOn(tasks.findByName("createReleaseDistributable") ?: tasks.named("createDistributable"))
     finalizedBy("validateAppImage")
+    doLast {
+        // Ship a debug-console launcher inside the app image: running it opens
+        // a console that shows any startup errors the windowless jpackage
+        // launcher would swallow.
+        val binaries = layout.projectDirectory.dir("build/compose/binaries").asFile
+        binaries.walkTopDown()
+            .filter { it.isDirectory && it.name == "MorseCode" && it.parentFile?.name == "app" }
+            .forEach { dir ->
+                dir.resolve("Start MorseCode (debug console).bat").writeText(
+                    "@echo off\r\n" +
+                        "rem Runs Morse Code with a visible console so startup errors are shown.\r\n" +
+                        "set \"DIR=%~dp0\"\r\n" +
+                        "\"%DIR%runtime\\bin\\java.exe\" -cp \"%DIR%app\\*\" net.morsecode.desktop.MainKt %*\r\n" +
+                        "echo.\r\n" +
+                        "echo Morse Code exited with code %ERRORLEVEL%.\r\n" +
+                        "pause\r\n",
+                )
+                println("packageReleaseAppImage: wrote debug launcher into ${dir.absolutePath}")
+            }
+    }
 }
 
 // Verifies the app image the portable zip is built from: launcher, config,
@@ -82,8 +102,14 @@ tasks.register("validateAppImage") {
                 .filter { it.isNotBlank() }
             val appRoot = dir.resolve("app")
             for (e in entries) {
-                val f = File(e)
-                val resolved = if (f.isAbsolute) f else appRoot.resolve(e)
+                // jpackage cfg entries may use the $APPDIR placeholder (expanded
+                // by the launcher at runtime).
+                val resolved = if (e.startsWith("$")) {
+                    appRoot.resolve(e.substringAfter('\\').replace('\\', '/'))
+                } else {
+                    val f = File(e)
+                    if (f.isAbsolute) f else appRoot.resolve(e)
+                }
                 if (!resolved.exists()) problems.add("cfg classpath entry missing: $e")
             }
             if (entries.isEmpty()) problems.add("cfg has no app.classpath entries")
