@@ -21,12 +21,13 @@ plugins {
 val ciCaptured = java.util.concurrent.ConcurrentHashMap<String, java.util.concurrent.ConcurrentLinkedQueue<String>>()
 
 allprojects {
-    tasks.configureEach { t ->
-        t.doFirst {
+    tasks.configureEach {
+        val task = this
+        task.doFirst {
             val buf = java.util.concurrent.ConcurrentLinkedQueue<String>()
-            ciCaptured[t.path] = buf
-            t.logging.addStandardErrorListener { msg -> if (msg.length < 100_000) buf.add(msg) }
-            t.logging.addStandardOutputListener { msg -> if (msg.length < 100_000) buf.add(msg) }
+            ciCaptured[task.path] = buf
+            task.logging.addStandardErrorListener { msg -> if (msg.length < 100_000) buf.add(msg.toString()) }
+            task.logging.addStandardOutputListener { msg -> if (msg.length < 100_000) buf.add(msg.toString()) }
         }
     }
 }
