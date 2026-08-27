@@ -35,12 +35,12 @@ foreach ($line in ($tail -split "`n")) {
 }
 if ($cur.Length -gt 0) { $chunks.Add($cur) }
 
-$i = 0
-foreach ($c in $chunks) {
-    if ($i -ge 10) { break }
+$emitted = 0
+for ($k = $chunks.Count - 1; $k -ge 0 -and $emitted -lt 10; $k--) {
+    $c = $chunks[$k]
     if ($c.Trim().Length -gt 0) {
         Write-Output ("::error::" + $c)
-        $i++
+        $emitted++
     }
 }
 

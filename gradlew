@@ -279,7 +279,8 @@ if [ -n "$CI_LOG" ]; then
         if [ ! -s "$CI_LOG.picked" ]; then
             tail -n 60 "$CI_LOG" 2>/dev/null | grep -vE '^\s*at |^\s*\.\.\. |^Run with' | tail -n 25 > "$CI_LOG.picked" 2>/dev/null || true
         fi
-        head -c 4800 "$CI_LOG.picked" | fold -w 460 -s | grep -v '^$' | head -n 10 | while IFS= read -r ann_line; do
+        # Emit the LAST ~10 chunks: the end of the failure block is what matters.
+        fold -w 460 -s "$CI_LOG.picked" | grep -v '^$' | tail -n 10 | while IFS= read -r ann_line; do
             printf '::error::%s\n' "$ann_line"
         done
         # Raw tail -> job summary (public run page) for full-context debugging.
