@@ -122,7 +122,10 @@ tasks.register("validateAppImage") {
         println("validateAppImage: checking ${dir.absolutePath} (found ${appDirs.size} app image(s): ${appDirs.map { it.parentFile.parentFile.name }})")
         println("validateAppImage: jars=$appJarCount totalFiles=${dir.walkTopDown().count()}")
         if (problems.isNotEmpty()) {
-            throw GradleException("validateAppImage FAILED:\n  - " + problems.joinToString("\n  - "))
+            // Emit each problem as a workflow annotation directly (the runner
+            // parses these from task output), plus a one-line summary.
+            problems.take(10).forEach { println("::error::validateAppImage: $it") }
+            throw GradleException("validateAppImage FAILED: " + problems.joinToString(" | "))
         }
         println("validateAppImage: OK")
     }
