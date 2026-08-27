@@ -18,14 +18,18 @@ Select-String -Path $Log -Pattern ' FAILED( |$)' -Context 0,1 | Select-Object -F
 # Kotlin compiler errors next (most actionable).
 Select-String -Path $Log -Pattern '^(e: |error)' | Select-Object -First 6 | ForEach-Object { $picked.Add($_.Line) }
 
-# Then the Gradle failure summary (task name + root causes).
+# Then the Gradle failure summary: only the meaningful lines (task names,
+# causes, descriptions) - never stack frames.
 $failureTail = Get-Content $Log | Select-String -Pattern '^FAILURE: Build failed' -Context 0,45
 if ($failureTail) {
-    $failureTail[0].Context.PostContext | ForEach-Object { $picked.Add($_) }
+    $failureTail[0].Context.PostContext | Where-Object {
+        $_ -match '^(FAILURE:|\* What went wrong:|\* Try:|> |Execution failed for task|Details:|e: |Caused by:|\* Exception is:)' -and
+        $_ -notmatch '^\s+at '
+    } | Select-Object -First 14 | ForEach-Object { $picked.Add($_) }
 }
 
 if ($picked.Count -eq 0) {
-    Get-Content $Log -Tail 12 | ForEach-Object { $picked.Add($_) }
+    Get-Content $Log -Tail 15 | Where-Object { $_ -notmatch '^\s+at ' } | ForEach-Object { $picked.Add($_) }
 }
 
 $text = [string]::Join("`n", $picked)
