@@ -272,6 +272,7 @@ if [ -n "$CI_LOG" ]; then
             awk '/^\* Exception is:/{f=1} f' "$CI_LOG" 2>/dev/null | grep -vE "^\s+at org\.gradle|^\s+at java" | head -n 35
             grep -E '^error' "$CI_LOG" 2>/dev/null | head -n 4
             awk '/^FAILURE: Build failed/{flag=1; print; next} flag' "$CI_LOG" 2>/dev/null | grep -vE '^\s+at |^Run with|^Get more help' | head -n 12
+            tail -n 220 "$CI_LOG" 2>/dev/null | grep -vE '^\s+at |^\s*\.\.\.[0-9]+ more|^Run with |^Get more help|^> Run with|^Download|^$' | tail -n 60
         } > "$CI_LOG.picked" 2>/dev/null
         # Fallback: nothing matched -> raw tail (minus stack noise) so there is
         # always a breadcrumb.
