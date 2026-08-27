@@ -26,8 +26,11 @@ import java.io.File
 import java.io.InputStream
 import net.morsecode.db.MorseDb
 import net.morsecode.shared.media.AppInfo
+import net.morsecode.shared.media.AppLibraryAndroid
+import net.morsecode.shared.media.MediaLibraryAndroid
 import net.morsecode.shared.media.MediaLibrary
 import net.morsecode.shared.player.AudioPlaybackController
+import net.morsecode.shared.player.AudioPlaybackControllerAndroid
 import net.morsecode.shared.storage.PlatformDeps
 
 actual val isDesktopPlatform: Boolean = false
@@ -78,7 +81,7 @@ class FileAdapterAndroid(private val context: Context) : FileAdapter {
             val resolver = context.contentResolver
             val itemUri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
                 ?: error("MediaStore insert failed (insufficient_storage)")
-            val pfd: ParcelFileDescriptor? = resolver.openFileDescriptor(itemUri, "rw")
+            val pfd: ParcelFileDescriptor = resolver.openFileDescriptor(itemUri, "rw")
                 ?: error("cannot open destination")
             val raf = java.io.RandomAccessFile(pfd.fileDescriptor, "rw")
             try { raf.setLength(sizeBytes) } catch (_: Exception) { }
