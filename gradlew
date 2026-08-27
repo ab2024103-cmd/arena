@@ -265,13 +265,15 @@ if [ -n "$CI_LOG" ]; then
     GRADLEW_STATUS="$(cat "$CI_LOG.exit" 2>/dev/null || echo 1)"
     if [ "$GRADLEW_STATUS" != "0" ]; then
         {
-            grep -E "^e: " "$CI_LOG" 2>/dev/null | head -n 8
-            grep -E '^error' "$CI_LOG" 2>/dev/null | head -n 6
-            awk '/^FAILURE: Build failed/{flag=1} flag' "$CI_LOG" 2>/dev/null | head -n 45
+            grep -A1 -E ' FAILED( |$)' "$CI_LOG" 2>/dev/null | head -n 16
+            grep -E "^e: " "$CI_LOG" 2>/dev/null | head -n 6
+            grep -E '^error' "$CI_LOG" 2>/dev/null | head -n 4
+            awk '/^FAILURE: Build failed/{flag=1; print; next} flag' "$CI_LOG" 2>/dev/null | grep -vE '^\s+at |^Run with|^Get more help' | head -n 12
         } > "$CI_LOG.picked" 2>/dev/null
-        # Fallback: nothing matched -> raw tail so there is always a breadcrumb.
+        # Fallback: nothing matched -> raw tail (minus stack noise) so there is
+        # always a breadcrumb.
         if [ ! -s "$CI_LOG.picked" ]; then
-            tail -n 40 "$CI_LOG" > "$CI_LOG.picked" 2>/dev/null
+            tail -n 60 "$CI_LOG" 2>/dev/null | grep -vE '^\s*at |^\s*\.\.\. |^Run with' | tail -n 25 > "$CI_LOG.picked" 2>/dev/null || true
         fi
         head -c 4800 "$CI_LOG.picked" | fold -w 460 -s | grep -v '^$' | head -n 10 | while IFS= read -r ann_line; do
             printf '::error::%s\n' "$ann_line"

@@ -9,7 +9,13 @@ if (-not (Test-Path $Log)) { return }
 
 $picked = New-Object System.Collections.Generic.List[string]
 
-# Kotlin compiler errors first (most actionable).
+# Failing tests first (name + exception message line).
+Select-String -Path $Log -Pattern ' FAILED( |$)' -Context 0,1 | Select-Object -First 8 | ForEach-Object {
+    $picked.Add($_.Line)
+    if ($_.Context.PostContext) { $picked.Add([string]$_.Context.PostContext[0]) }
+}
+
+# Kotlin compiler errors next (most actionable).
 Select-String -Path $Log -Pattern '^(e: |error)' | Select-Object -First 6 | ForEach-Object { $picked.Add($_.Line) }
 
 # Then the Gradle failure summary (task name + root causes).
