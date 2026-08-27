@@ -10,7 +10,7 @@ expect class MdnsDiscovery(scope: kotlinx.coroutines.CoroutineScope) {
     val devices: StateFlow<List<DeviceInfo>>
 
     /** Starts advertising + browsing. */
-    fun start(self: SelfProfile, port: Int, roomId: String? = null)
+    fun start(self: SelfProfile, port: Int, roomId: String?)
 
     /** Updates the advertised TXT (e.g. when a room is created/joined). */
     fun updateRoom(roomId: String?)
