@@ -73,8 +73,20 @@ goto fail
 set CLASSPATH=%APP_HOME%\gradle\wrapper\gradle-wrapper.jar
 
 
-@rem Execute Gradle
-"%JAVA_EXE%" %DEFAULT_JVM_OPTS% %JAVA_OPTS% %GRADLE_OPTS% "-Dorg.gradle.appname=%APP_BASE_NAME%" -classpath "%CLASSPATH%" org.gradle.wrapper.GradleWrapperMain %*
+@rem Execute Gradle. Under CI the output is captured so that failures can be
+@rem re-emitted as GitHub Actions ::error:: annotations (readable via the
+@rem Checks API even when the Actions log blob store is unreachable).
+set CLASSPATH=%APP_HOME%\gradle\wrapper\gradle-wrapper.jar
+
+set GRADLEW_CI_LOG=%TEMP%\gradlew-out.log
+"%JAVA_EXE%" %DEFAULT_JVM_OPTS% %JAVA_OPTS% %GRADLE_OPTS% "-Dorg.gradle.appname=%APP_BASE_NAME%" -classpath "%CLASSPATH%" org.gradle.wrapper.GradleWrapperMain %* --console=plain > "%GRADLEW_CI_LOG%" 2>&1
+set GRADLEW_STATUS=%ERRORLEVEL%
+type "%GRADLEW_CI_LOG%"
+if not "%GRADLEW_STATUS%"=="0" if defined CI powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\ci-emit-annotations.ps1" -Log "%GRADLEW_CI_LOG%"
+if "%GRADLEW_STATUS%"=="0" goto mainEnd
+set EXIT_CODE=%GRADLEW_STATUS%
+if not ""=="%GRADLE_EXIT_CONSOLE%" exit %EXIT_CODE%
+exit /b %EXIT_CODE%
 
 :end
 @rem End local scope for the variables with windows NT shell
