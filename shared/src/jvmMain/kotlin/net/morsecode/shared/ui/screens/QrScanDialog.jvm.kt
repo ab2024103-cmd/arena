@@ -1,7 +1,7 @@
-package net.morsecode.shared.ui
+package net.morsecode.shared.ui.screens
 
 import androidx.compose.runtime.Composable
-import net.morsecode.shared.ui.screens.ManualConnectDialog
+import net.morsecode.shared.ui.AppViewModel
 
 /**
  * JVM/desktop actual for QrScanDialog. There is no camera on desktop, so we

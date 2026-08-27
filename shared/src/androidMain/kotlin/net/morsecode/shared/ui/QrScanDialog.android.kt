@@ -1,4 +1,4 @@
-package net.morsecode.shared.ui
+package net.morsecode.shared.ui.screens
 
 import android.Manifest
 import android.content.pm.PackageManager
@@ -38,7 +38,7 @@ import com.google.zxing.PlanarYUVLuminanceSource
 import com.google.zxing.common.HybridBinarizer
 import java.util.concurrent.Executors
 import net.morsecode.shared.platform.AndroidEnv
-import net.morsecode.shared.ui.screens.ManualConnectDialog
+import net.morsecode.shared.ui.AppViewModel
 
 /**
  * CameraX + ZXing QR scanner dialog (Android actual). Falls back to manual

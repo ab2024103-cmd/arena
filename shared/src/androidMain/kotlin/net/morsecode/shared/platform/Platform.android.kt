@@ -153,35 +153,6 @@ class FileAdapterAndroid(private val context: Context) : FileAdapter {
     override fun receivedDir(): String = Environment.DIRECTORY_DOWNLOADS + "/MorseCode"
 }
 
-actual fun platformCopyToClipboard(text: String) {
-    val cm = context().getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-    cm.setPrimaryClip(ClipData.newPlainText("Morse Code", text))
-}
-
-private fun context(): Context = AndroidEnv.appContext
-
-@Composable
-actual fun AppBackHandler(enabled: Boolean, onBack: () -> Unit) {
-    BackHandler(enabled = enabled, onBack = onBack)
-}
-
-@Composable
-actual fun rememberQrBitmap(content: String, sizePx: Int): ImageBitmap? = remember(content, sizePx) {
-    try {
-        val hints = mapOf(EncodeHintType.MARGIN to 1)
-        val matrix: BitMatrix = QRCodeWriter().encode(content, BarcodeFormat.QR_CODE, sizePx, sizePx, hints)
-        val bmp = Bitmap.createBitmap(matrix.width, matrix.height, Bitmap.Config.RGB_565)
-        for (x in 0 until matrix.width) {
-            for (y in 0 until matrix.height) {
-                bmp.setPixel(x, y, if (matrix[x, y]) android.graphics.Color.BLACK else android.graphics.Color.WHITE)
-            }
-        }
-        bmp.asImageBitmap()
-    } catch (e: Exception) {
-        null
-    }
-}
-
 actual suspend fun extractAppApk(app: AppInfo): PickedFile? = ApkExtractor.extract(AndroidEnv.appContext, app)
 
 actual fun installApk(path: String) {

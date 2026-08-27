@@ -130,28 +130,6 @@ actual fun platformCopyToClipboard(text: String) {
     Toolkit.getDefaultToolkit().systemClipboard.setContents(StringSelection(text), null)
 }
 
-@Composable
-actual fun AppBackHandler(enabled: Boolean, onBack: () -> Unit) {
-    // desktop: no system back button
-}
-
-@Composable
-actual fun rememberQrBitmap(content: String, sizePx: Int): ImageBitmap? = remember(content, sizePx) {
-    try {
-        val hints = mapOf(EncodeHintType.MARGIN to 1)
-        val matrix = QRCodeWriter().encode(content, BarcodeFormat.QR_CODE, sizePx, sizePx, hints)
-        val img = java.awt.image.BufferedImage(sizePx, sizePx, java.awt.image.BufferedImage.TYPE_INT_RGB)
-        for (x in 0 until sizePx) for (y in 0 until sizePx) {
-            img.setRGB(x, y, if (matrix[x, y]) 0xFF000000.toInt() else 0xFFFFFFFF.toInt())
-        }
-        val out = java.io.ByteArrayOutputStream()
-        ImageIO.write(img, "png", out)
-        org.jetbrains.skia.Image.makeFromEncoded(out.toByteArray()).toComposeImageBitmap()
-    } catch (e: Exception) {
-        null
-    }
-}
-
 actual suspend fun extractAppApk(app: AppInfo): PickedFile? = null
 
 actual fun installApk(path: String) {
