@@ -22,6 +22,13 @@ data class IncomingMessage(val type: Byte, val payload: ByteArray) {
     }
 }
 
+/** Decode a raw handshake frame (pre-connection) into its message type. */
+inline fun <reified T> Frame.decodeAs(): T {
+    @Suppress("UNCHECKED_CAST")
+    val ser = MsgJson.serializerFor(type) as KSerializer<T>
+    return MsgJson.json.decodeFromString(ser, payload.decodeToString())
+}
+
 object MsgJson {
     val json: Json = Json {
         ignoreUnknownKeys = true

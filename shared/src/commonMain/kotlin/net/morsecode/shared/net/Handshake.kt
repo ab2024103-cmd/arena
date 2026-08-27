@@ -7,17 +7,17 @@ import java.net.Socket
 
 class HandshakeRejectedException(val reason: String) : Exception(reason)
 
-data class HelloAcceptance(
-    val accepted: Boolean,
-    val reason: String? = null,
-)
-
 /**
  * Key exchange + HELLO flow (Section 4). Both peers use fresh ephemeral P-256
  * keypairs; the session key is HKDF-SHA256 over the ECDH secret with the
  * sorted concat of both public keys as salt.
  */
 object Handshake {
+
+    data class HelloAcceptance(
+        val accepted: Boolean,
+        val reason: String? = null,
+    )
 
     /** Initiator side. Connects and performs KEY_EXCHANGE + HELLO/HELLO_ACK. */
     suspend fun initiate(

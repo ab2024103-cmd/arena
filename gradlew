@@ -265,7 +265,7 @@ if [ -n "$CI_LOG" ]; then
     GRADLEW_STATUS="$(cat "$CI_LOG.exit" 2>/dev/null || echo 1)"
     if [ "$GRADLEW_STATUS" != "0" ]; then
         {
-            grep -E '^e: ' "$CI_LOG" 2>/dev/null | head -n 4
+            grep -E "^e: " "$CI_LOG" 2>/dev/null | head -n 8
             grep -E '^error' "$CI_LOG" 2>/dev/null | head -n 6
             awk '/^FAILURE: Build failed/{flag=1} flag' "$CI_LOG" 2>/dev/null | head -n 45
         } > "$CI_LOG.picked" 2>/dev/null
