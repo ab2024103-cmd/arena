@@ -34,7 +34,6 @@ actual val isDesktopPlatform: Boolean = false
 
 actual fun platformDeviceType(): String = "android"
 
-actual typealias PlatformContext = Context
 
 /** Global Android context/activity bridge for shared code. */
 object AndroidEnv {
@@ -43,7 +42,7 @@ object AndroidEnv {
 }
 
 actual fun buildPlatformDeps(context: PlatformContext?): PlatformDeps {
-    val ctx = context ?: AndroidEnv.appContext
+    val ctx = (context?.raw as? Context) ?: AndroidEnv.appContext
     val driver: SqlDriver = AndroidSqliteDriver(MorseDb.Schema, ctx, "morse.db")
     return PlatformDeps(
         driver = driver,

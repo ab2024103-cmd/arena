@@ -43,7 +43,9 @@ class MainActivity : ComponentActivity() {
         AndroidEnv.activity = this
         if (!ServiceLocator.initialized) {
             ServiceLocator.init(
-                net.morsecode.shared.platform.buildPlatformDeps(applicationContext),
+                net.morsecode.shared.platform.buildPlatformDeps(
+                    net.morsecode.shared.platform.PlatformContext.from(applicationContext),
+                ),
             )
             viewModel = AppViewModel(appScope)
         }

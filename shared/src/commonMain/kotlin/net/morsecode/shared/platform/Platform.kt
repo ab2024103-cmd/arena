@@ -5,7 +5,12 @@ import net.morsecode.shared.storage.PlatformDeps
 expect val isDesktopPlatform: Boolean
 expect fun platformCopyToClipboard(text: String)
 expect fun platformDeviceType(): String
-expect class PlatformContext
+/** Opaque platform context (android.content.Context on Android). */
+class PlatformContext private constructor(val raw: Any?) {
+    companion object {
+        fun from(raw: Any?): PlatformContext = PlatformContext(raw)
+    }
+}
 expect fun buildPlatformDeps(context: PlatformContext?): PlatformDeps
 
 /** A file the user picked to send (platform URI on Android, path on Desktop). */

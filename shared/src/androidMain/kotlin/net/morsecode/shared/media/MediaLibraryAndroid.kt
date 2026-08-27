@@ -76,7 +76,7 @@ class MediaLibraryAndroid(private val context: Context) : MediaLibrary {
     override suspend fun getStorageUsage(): StorageUsage = withContext(Dispatchers.IO) {
         val dir: File? = try { Environment.getExternalStorageDirectory() } catch (e: Exception) { null }
         if (dir != null && dir.exists()) {
-            StorageUsage(dir.totalSize - dir.usableSpace, dir.totalSize)
+            StorageUsage(dir.totalSpace - dir.usableSpace, dir.totalSpace)
         } else {
             StorageUsage(0, 0)
         }

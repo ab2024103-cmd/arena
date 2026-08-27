@@ -28,10 +28,6 @@ actual val isDesktopPlatform: Boolean = true
 
 actual fun platformDeviceType(): String = "windows"
 
-actual class PlatformContext private constructor() {
-    companion object { val INSTANCE = PlatformContext() }
-}
-
 /** Desktop data directory: ~/MorseCode */
 object DesktopDirs {
     val root: File by lazy {

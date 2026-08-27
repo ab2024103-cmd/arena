@@ -11,10 +11,10 @@ import androidx.activity.result.contract.ActivityResultContracts
  * a pending continuation is completed with the results.
  */
 object AndroidFilePicker {
-    @Volatile private var launcher: ActivityResultLauncher<Array<Uri>>? = null
+    @Volatile private var launcher: ActivityResultLauncher<Array<String>>? = null
     @Volatile private var pending: kotlinx.coroutines.CompletableDeferred<List<PickedFile>>? = null
 
-    fun register(activity: Activity): ActivityResultLauncher<Array<Uri>> {
+    fun register(activity: Activity): ActivityResultLauncher<Array<String>> {
         val l = (activity as androidx.activity.ComponentActivity).activityResultRegistry.register(
             "morse-pick-files",
             ActivityResultContracts.OpenMultipleDocuments(),
