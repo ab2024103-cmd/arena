@@ -25,6 +25,8 @@ import com.google.zxing.qrcode.QRCodeWriter
 import java.io.File
 import java.io.InputStream
 import net.morsecode.db.MorseDb
+import net.morsecode.shared.media.ApkExtractor
+import net.morsecode.shared.media.ApkInstaller
 import net.morsecode.shared.media.AppInfo
 import net.morsecode.shared.media.AppLibraryAndroid
 import net.morsecode.shared.media.MediaLibraryAndroid
