@@ -256,21 +256,27 @@ if [ "${CI:-}" = "true" ]; then
 fi
 
 if [ -n "$CI_LOG" ]; then
-    # CI diagnostics: tee all output, and on failure re-emit the interesting
-    # lines as ::error:: workflow commands. The runner converts those into
-    # check-run annotations, readable via the Checks API even when the Actions
-    # log blob store is unreachable from the outside.
-    ( "$JAVACMD" "$@" ; echo $? > "$CI_LOG.exit" ) | tee "$CI_LOG"
+    # CI diagnostics: tee all output (stderr merged — Gradle and the Kotlin
+    # compiler write user-visible messages there), and on failure re-emit the
+    # interesting lines as ::error:: workflow commands. The runner converts
+    # those into check-run annotations, readable via the Checks API even when
+    # the Actions log blob store is unreachable from the outside.
+    ( "$JAVACMD" "$@" 2>&1 ; echo $? > "$CI_LOG.exit" ) | tee "$CI_LOG"
     GRADLEW_STATUS="$(cat "$CI_LOG.exit" 2>/dev/null || echo 1)"
     if [ "$GRADLEW_STATUS" != "0" ]; then
         {
             grep -E '^e: ' "$CI_LOG" 2>/dev/null | head -n 4
             awk '/^FAILURE: Build failed/{flag=1} flag' "$CI_LOG" 2>/dev/null | head -n 45
-        } | head -c 4800 | fold -w 460 -s | grep -v '^$' | head -n 10 | while IFS= read -r ann_line; do
+        } > "$CI_LOG.picked" 2>/dev/null
+        # Fallback: nothing matched -> raw tail so there is always a breadcrumb.
+        if [ ! -s "$CI_LOG.picked" ]; then
+            tail -n 40 "$CI_LOG" > "$CI_LOG.picked" 2>/dev/null
+        fi
+        head -c 4800 "$CI_LOG.picked" | fold -w 460 -s | grep -v '^$' | head -n 10 | while IFS= read -r ann_line; do
             printf '::error::%s\n' "$ann_line"
         done
     fi
-    rm -f "$CI_LOG" "$CI_LOG.exit"
+    rm -f "$CI_LOG" "$CI_LOG.exit" "$CI_LOG.picked"
     exit "$GRADLEW_STATUS"
 fi
 
