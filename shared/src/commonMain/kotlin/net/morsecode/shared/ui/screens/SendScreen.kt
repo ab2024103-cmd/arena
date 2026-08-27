@@ -43,6 +43,7 @@ import kotlinx.coroutines.launch
 fun SendScreen(vm: AppViewModel, onDone: () -> Unit) {
     val devices by vm.devices.collectAsState()
     val picked = remember { mutableStateListOf<PickedFile>() }
+    var picking by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
         val pending = vm.pendingSendFiles.value
         if (pending.isNotEmpty()) {
