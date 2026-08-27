@@ -52,6 +52,9 @@ tasks.register("packageReleaseAppImage") {
     group = "compose desktop"
     description = "Alias for createReleaseDistributable/createDistributable (CI compatibility)."
     dependsOn(tasks.findByName("createReleaseDistributable") ?: tasks.named("createDistributable"))
+    // Build the jlink runtime image (binaries/<variant>/runtime) too; nothing
+    // else in this pipeline triggers it.
+    tasks.findByName("createRuntimeImage")?.let { dependsOn(it) }
     finalizedBy("validateAppImage")
     doLast {
         val binaries = layout.projectDirectory.dir("build/compose/binaries").asFile
