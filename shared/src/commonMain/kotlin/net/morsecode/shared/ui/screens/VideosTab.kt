@@ -42,7 +42,7 @@ fun VideosTab(vm: AppViewModel, onNavigate: (Route) -> Unit) {
     }
 
     val filtered = videos.value.filter { query.isBlank() || it.filename.contains(query, true) }
-    val groups = net.morsecode.shared.media.DateGrouping.groupByDay(filtered) { it.dateAddedEpochMs }
+    val groups = net.morsecode.shared.media.DateGrouping.groupByDay(filtered, { it.dateAddedEpochMs })
 
     Column(Modifier.fillMaxSize()) {
         OutlinedTextField(

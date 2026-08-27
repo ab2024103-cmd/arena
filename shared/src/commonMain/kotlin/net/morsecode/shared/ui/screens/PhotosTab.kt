@@ -47,7 +47,7 @@ fun PhotosTab(vm: AppViewModel, onNavigate: (Route) -> Unit) {
     }
 
     val filtered = photos.value.filter { query.isBlank() || it.filename.contains(query, true) }
-    val groups = net.morsecode.shared.media.DateGrouping.groupByDay(filtered) { it.dateTakenEpochMs }
+    val groups = net.morsecode.shared.media.DateGrouping.groupByDay(filtered, { it.dateTakenEpochMs })
 
     Column(Modifier.fillMaxSize()) {
         OutlinedTextField(

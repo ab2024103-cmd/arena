@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CallReceived
 import androidx.compose.material.icons.filled.CallMade
@@ -62,7 +63,7 @@ fun HistoryTab(vm: AppViewModel) {
             return@Column
         }
 
-        val groups = DateGrouping.groupByDay(entries) { it.ts }
+        val groups = DateGrouping.groupByDay(entries, { it.ts })
         LazyColumn(Modifier.fillMaxSize()) {
             groups.forEach { (header, list) ->
                 item(key = "h_$header") {

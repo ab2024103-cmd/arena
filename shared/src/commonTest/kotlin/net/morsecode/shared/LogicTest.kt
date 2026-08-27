@@ -45,7 +45,7 @@ class LogicTest {
         val items = listOf(
             Item("a", 1000), Item("b", 2000), Item("c", 86_400_000 + 1500),
         )
-        val groups = DateGrouping.groupByDay(items) { it.at }
+        val groups = DateGrouping.groupByDay(items, { it.at })
         assertEquals(2, groups.size)
         assertEquals(listOf("a", "b"), groups.last().second.map { it.name })
     }
