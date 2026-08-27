@@ -6,6 +6,7 @@ import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.content.PartData
 import io.ktor.http.content.forEachPart
+import net.morsecode.shared.storage.ServiceLocator
 import io.ktor.server.application.Application
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.application.call
@@ -20,7 +21,7 @@ import io.ktor.server.routing.post
 import io.ktor.server.routing.routing
 import io.ktor.server.websocket.webSocket
 import io.ktor.websocket.Frame
-import io.ktor.websocket.WebSocketServerSession
+import io.ktor.server.websocket.WebSocketServerSession
 import io.ktor.websocket.readText
 import java.util.concurrent.CopyOnWriteArraySet
 import kotlinx.coroutines.CoroutineScope
@@ -100,7 +101,7 @@ fun Application.webConnectModule(server: WebConnectServer) {
                 call.respondText("not found", ContentType.Text.Plain, HttpStatusCode.NotFound)
                 return@get
             }
-            val bytes = fileAdapter.open(file.uri).use { it.readBytes() }
+            val bytes = ServiceLocator.deps.fileAdapter.open(file.uri).use { it.readBytes() }
             call.response.header(HttpHeaders.ContentDisposition, "attachment; filename=\"${file.displayName.replace("\"", "")}\"")
             call.respondBytes(bytes, ContentType.Application.OctetStream)
         }
@@ -111,11 +112,11 @@ fun Application.webConnectModule(server: WebConnectServer) {
             var name = "upload.bin"
             var savedPath: String? = null
             var savedSize = 0L
-            multipart.forEachPart { part ->
+            multipart.forEachPart { part: PartData ->
                 if (part is PartData.FileItem) {
                     name = part.originalFileName ?: name
                     val bytes = part.streamProvider().readBytes()
-                    val sink = fileAdapter.incomingSink(name, bytes.size.toLong(), "application/octet-stream")
+                    val sink = ServiceLocator.deps.fileAdapter.incomingSink(name, bytes.size.toLong(), "application/octet-stream")
                     try {
                         sink.writeAt(0, bytes)
                         sink.complete(true)

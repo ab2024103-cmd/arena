@@ -43,7 +43,7 @@ class WebConnectServer(
     private var engine: io.ktor.server.engine.ApplicationEngine? = null
 
     /** Live browser WebSocket sessions (chat bridge). */
-    val browserSessions = java.util.concurrent.CopyOnWriteArraySet<io.ktor.websocket.WebSocketServerSession>()
+    val browserSessions = java.util.concurrent.CopyOnWriteArraySet<io.ktor.server.websocket.WebSocketServerSession>()
 
     /** Native -> browser chat broadcast. */
     val chatBroadcast = kotlinx.coroutines.flow.MutableSharedFlow<WsChatMsg>(replay = 0, extraBufferCapacity = 128)
