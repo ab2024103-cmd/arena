@@ -50,6 +50,7 @@ import net.morsecode.shared.webconnect.SharedSessionFile
 import net.morsecode.shared.webconnect.WebConnectServer
 import net.morsecode.shared.webconnect.WsChatMsg
 import kotlinx.coroutines.delay
+import net.morsecode.shared.net.toHex
 
 /** A transfer awaiting the user's accept/reject decision. */
 data class IncomingRequestState(
@@ -108,6 +109,10 @@ class AppViewModel(val scope: CoroutineScope) {
     val incomingRequest: StateFlow<IncomingRequestState?> = _incomingRequest
     private val _incomingText = MutableStateFlow<IncomingTextState?>(null)
     val incomingText: StateFlow<IncomingTextState?> = _incomingText
+
+    fun clearIncomingText() {
+        _incomingText.value = null
+    }
     private val _sendProgress = MutableStateFlow<SendProgressState?>(null)
     val sendProgress: StateFlow<SendProgressState?> = _sendProgress
     private val _toast = MutableStateFlow<String?>(null)
@@ -430,8 +435,8 @@ class AppViewModel(val scope: CoroutineScope) {
 
     /** Synchronous random-access sink bridging FileAdapter (receiver runs on IO). */
     private class SyncChunkSink(
-        adapter: FileAdapter,
-        manifest: FileManifest,
+        private val adapter: FileAdapter,
+        private val manifest: FileManifest,
     ) : ChunkSink {
         private val sink = adapter.incomingSink(manifest.filename, manifest.size_bytes, manifest.mime_type)
         override val displayPath: String = sink.displayPath

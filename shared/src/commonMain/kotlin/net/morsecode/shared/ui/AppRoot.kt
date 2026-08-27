@@ -225,18 +225,18 @@ private fun IncomingTextOverlay(vm: AppViewModel) {
     val incoming by vm.incomingText.collectAsState()
     incoming?.let { txt ->
         AlertDialog(
-            onDismissRequest = { vm.incomingText.value = null },
+            onDismissRequest = { vm.clearIncomingText() },
             title = { Text("Text from ${txt.from}") },
             text = { Text(txt.text, maxLines = 12) },
             confirmButton = {
                 TextButton(onClick = {
                     copyToClipboard(txt.text)
                     vm.toast("Copied to clipboard")
-                    vm.incomingText.value = null
+                    vm.clearIncomingText()
                 }) { Text("Copy") }
             },
             dismissButton = {
-                TextButton(onClick = { vm.incomingText.value = null }) { Text("Close") }
+                TextButton(onClick = { vm.clearIncomingText() }) { Text("Close") }
             },
         )
     }
