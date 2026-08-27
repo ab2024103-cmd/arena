@@ -19,9 +19,12 @@ import kotlinx.coroutines.launch
  * JmDNS implementation shared by the Android and Desktop actuals (Section 3).
  * Advertises `_morsecode._tcp.local.` and prunes devices unseen for 15s.
  */
-abstract class JmDnsDiscoveryBase(protected val scope: CoroutineScope) {
+class JmDnsDiscoveryBase(
+    protected val scope: CoroutineScope,
+    private val bindAddressProvider: () -> Inet4Address?,
+) {
     protected val _devices = MutableStateFlow<List<DeviceInfo>>(emptyList())
-    open val devices: StateFlow<List<DeviceInfo>> get() = _devices
+    val devices: StateFlow<List<DeviceInfo>> get() = _devices
 
     private var jmdns: JmDNS? = null
     private var pruneJob: kotlinx.coroutines.Job? = null
@@ -31,14 +34,12 @@ abstract class JmDnsDiscoveryBase(protected val scope: CoroutineScope) {
     @Volatile private var advertisingPort: Int = MorseServer.DEFAULT_PORT
     @Volatile private var self: SelfProfile? = null
 
-    protected abstract fun bindAddress(): Inet4Address?
-
-    open fun start(self: SelfProfile, port: Int, roomId: String?) {
+    fun start(self: SelfProfile, port: Int, roomId: String?) {
         this.self = self
         this.selfId = self.deviceId
         this.advertisingPort = port
         this.currentRoomId = roomId
-        val addr = bindAddress() ?: return
+        val addr = bindAddressProvider() ?: return
         try {
             val jm = JmDNS.create(addr, "morse-" + self.deviceId.take(8))
             jmdns = jm
@@ -119,13 +120,13 @@ abstract class JmDnsDiscoveryBase(protected val scope: CoroutineScope) {
         }
     }
 
-    open fun updateRoom(roomId: String?) {
+    fun updateRoom(roomId: String?) {
         currentRoomId = roomId
     }
 
-    open fun refreshNow() = publish()
+    fun refreshNow() = publish()
 
-    open fun stop() {
+    fun stop() {
         pruneJob?.cancel()
         runCatching { jmdns?.unregisterAllServices() }
         runCatching { jmdns?.close() }
