@@ -9,6 +9,17 @@ plugins {
     id("org.jetbrains.compose")
 }
 
+sourceSets {
+    main {
+        // The desktop sources use the multiplatform-style directory name; the
+        // plain kotlin-jvm plugin only looks at src/main/kotlin, so without
+        // this the module compiles to an empty jar (silently breaking every
+        // packaged artifact with ClassNotFoundException at launch).
+        kotlin.srcDir("src/jvmMain/kotlin")
+        resources.srcDir("src/jvmMain/resources")
+    }
+}
+
 kotlin {
     compilerOptions { jvmTarget.set(JvmTarget.JVM_17) }
 }
@@ -147,12 +158,10 @@ tasks.register("packageReleaseAppImage") {
         imageDir.resolve("MorseCode.exe").delete()
         imageDir.resolve("app/MorseCode.cfg").delete()
 
-        // Run after compose's packaging tasks so nothing overwrites this layout.
-        afterEvaluate {
-            tasks.findByName("packageDistributionForCurrentOS")?.let { mustRunAfter(it) }
-            tasks.findByName("createReleaseDistributable")?.let { mustRunAfter(it) }
-        }
     }
+    // Run after compose's packaging tasks so nothing overwrites this layout
+    // (string task paths resolve lazily).
+    mustRunAfter("packageDistributionForCurrentOS", "createReleaseDistributable")
 }
 
 tasks.register("validateAppImage") {
