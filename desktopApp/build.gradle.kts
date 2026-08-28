@@ -66,77 +66,91 @@ afterEvaluate {
 // validate the produced bundle so a broken portable zip fails the build.
 tasks.register("packageReleaseAppImage") {
     group = "compose desktop"
-    description = "Alias for createReleaseDistributable/createDistributable (CI compatibility)."
-    dependsOn(tasks.findByName("createReleaseDistributable") ?: tasks.named("createDistributable"))
+    description = "Builds a self-contained portable app image (bat launchers + plain jars + bundled jlink runtime)."
+    dependsOn(tasks.named("jar"))
     finalizedBy("validateAppImage")
+
     doLast {
         val binaries = layout.projectDirectory.dir("build/compose/binaries").asFile
-        val appDirs = binaries.walkTopDown()
-            .filter { it.isDirectory && it.name == "MorseCode" && it.parentFile?.name == "app" }
-            .toList()
+        val imageDir = binaries.resolve("main-release/app/MorseCode")
+        val appDir = imageDir.resolve("app")
+        appDir.deleteRecursively()
+        appDir.mkdirs()
 
-        // Compose's createDistributable/createReleaseDistributable prepare the
-        // launcher + jars but do NOT embed the jlink runtime (that happens in
-        // the jpackage packaging tasks we are aliasing for). Bundle it here so
-        // the portable app image is self-contained.
-        val runtimeSource = appDirs.firstOrNull { it.resolve("runtime/bin/java.exe").isFile }
-            ?.resolve("runtime")
-            ?: binaries.walkTopDown()
-                .filter { it.isDirectory && it.name == "runtime" && it.resolve("bin/java.exe").isFile }
-                .firstOrNull()
+        // Main application jar (plain, unobfuscated, contains the entrypoint).
+        val mainJar = tasks.named("jar", Jar::class.java).get().archiveFile.get().asFile
+        mainJar.copyTo(appDir.resolve("MorseCode.jar"), overwrite = true)
 
-        for (dir in appDirs) {
-            // Debug-console launcher so users can see startup errors.
-            dir.resolve("Start MorseCode (debug console).bat").writeText(
-                "@echo off\r\n" +
-                    "rem Runs Morse Code with a visible console so startup errors are shown.\r\n" +
-                    "set \"DIR=%~dp0\"\r\n" +
-                    "\"%DIR%runtime\\bin\\java.exe\" -cp \"%DIR%app\\*\" net.morsecode.desktop.MainKt %*\r\n" +
-                    "echo.\r\n" +
-                    "echo Morse Code exited with code %ERRORLEVEL%.\r\n" +
-                    "pause\r\n",
-            )
-            println("packageReleaseAppImage: wrote debug launcher into ${dir.absolutePath}")
+        // All runtime dependency jars.
+        val deps = sourceSets.main.get().runtimeClasspath.filter { it.isFile && it.extension == "jar" }
+        deps.forEach { it.copyTo(appDir.resolve(it.name), overwrite = true) }
+        println("packageReleaseAppImage: app/ jars: ${appDir.listFiles()!!.size} (main: ${mainJar.name})")
 
-            val runtimeDir = dir.resolve("runtime")
-            if (!runtimeDir.resolve("bin/java.exe").isFile) {
-                val source = runtimeSource
-                if (source != null) {
-                    println("packageReleaseAppImage: bundling runtime from ${source.absolutePath} into ${dir.name}")
-                    source.copyRecursively(runtimeDir, overwrite = true)
-                } else {
-                    // Fallback: jlink a runtime straight from the build JDK.
-                    val jdkHome = File(System.getProperty("java.home"))
-                    val jmods = jdkHome.resolve("jmods")
-                    if (!jmods.isDirectory) {
-                        throw GradleException("packageReleaseAppImage: no runtime image to bundle and no jmods under $jdkHome")
-                    }
-                    val isWindows = System.getProperty("os.name").lowercase().contains("windows")
-                    val jlink = jdkHome.resolve(if (isWindows) "bin/jlink.exe" else "bin/jlink")
-                    // jlink refuses an existing output directory.
-                    runtimeDir.deleteRecursively()
-                    println("packageReleaseAppImage: jlink-ing runtime from $jdkHome into ${dir.name}")
-                    val err = ByteArrayOutputStream()
-                    val result = exec {
-                        commandLine(
-                            jlink.absolutePath,
-                            "--add-modules",
-                            "java.desktop,java.sql,java.naming,java.management,java.instrument," +
-                                "java.logging,java.xml,jdk.unsupported,jdk.crypto.ec,jdk.crypto.cryptoki," +
-                                "jdk.zipfs,jdk.management",
-                            "--output", runtimeDir.absolutePath,
-                            "--no-header-files", "--no-man-pages", "--compress=2",
-                        )
-                        errorOutput = err
-                        isIgnoreExitValue = true
-                    }
-                    if (result.exitValue != 0) {
-                        val msg = err.toString().trim().take(600)
-                        println("::error::packageReleaseAppImage: jlink failed (exit ${result.exitValue}): $msg")
-                        throw GradleException("packageReleaseAppImage: jlink failed (exit ${result.exitValue}): $msg")
-                    }
-                }
+        // Bundled runtime: reuse compose's jlink image when present, else jlink
+        // from the build JDK ourselves.
+        val runtimeDir = imageDir.resolve("runtime")
+        runtimeDir.deleteRecursively()
+        val rt = binaries.walkTopDown()
+            .filter { it.isDirectory && it.name == "runtime" && it.resolve("bin/java.exe").isFile && it != runtimeDir }
+            .firstOrNull()
+        if (rt != null) {
+            println("packageReleaseAppImage: bundling runtime from ${rt.absolutePath}")
+            rt.copyRecursively(runtimeDir, overwrite = true)
+        } else {
+            val jdkHome = File(System.getProperty("java.home"))
+            val jmods = jdkHome.resolve("jmods")
+            if (!jmods.isDirectory) {
+                throw GradleException("packageReleaseAppImage: no runtime image to bundle and no jmods under $jdkHome")
             }
+            val isWindows = System.getProperty("os.name").lowercase().contains("windows")
+            val jlink = jdkHome.resolve(if (isWindows) "bin/jlink.exe" else "bin/jlink")
+            println("packageReleaseAppImage: jlink-ing runtime from $jdkHome")
+            val err = ByteArrayOutputStream()
+            val result = exec {
+                commandLine(
+                    jlink.absolutePath,
+                    "--add-modules",
+                    "java.desktop,java.sql,java.naming,java.management,java.instrument," +
+                        "java.logging,java.xml,jdk.unsupported,jdk.crypto.ec,jdk.crypto.cryptoki," +
+                        "jdk.zipfs,jdk.management",
+                    "--output", runtimeDir.absolutePath,
+                    "--no-header-files", "--no-man-pages", "--compress=2",
+                )
+                errorOutput = err
+                isIgnoreExitValue = true
+            }
+            if (result.exitValue != 0) {
+                val msg = err.toString().trim().take(600)
+                println("::error::packageReleaseAppImage: jlink failed (exit ${result.exitValue}): $msg")
+                throw GradleException("packageReleaseAppImage: jlink failed (exit ${result.exitValue}): $msg")
+            }
+        }
+
+        // Launchers: double-clickable (javaw, no console) + debug console bat.
+        imageDir.resolve("MorseCode.bat").writeText(
+            "@echo off\r\n" +
+                "rem Morse Code launcher (no console window).\r\n" +
+                "set \"DIR=%~dp0\"\r\n" +
+                "start \"\" \"%DIR%runtime\\bin\\javaw.exe\" -cp \"%DIR%app\\*\" net.morsecode.desktop.MainKt %*\r\n",
+        )
+        imageDir.resolve("Start MorseCode (debug console).bat").writeText(
+            "@echo off\r\n" +
+                "rem Runs Morse Code with a visible console so startup errors are shown.\r\n" +
+                "set \"DIR=%~dp0\"\r\n" +
+                "\"%DIR%runtime\\bin\\java.exe\" -cp \"%DIR%app\\*\" net.morsecode.desktop.MainKt %*\r\n" +
+                "echo.\r\n" +
+                "echo Morse Code exited with code %ERRORLEVEL%.\r\n" +
+                "pause\r\n",
+        )
+        // Remove compose-generated launcher artifacts (their cfg references the
+        // obfuscated/renamed jars which we intentionally do not ship).
+        imageDir.resolve("MorseCode.exe").delete()
+        imageDir.resolve("app/MorseCode.cfg").delete()
+
+        // Run after compose's packaging tasks so nothing overwrites this layout.
+        afterEvaluate {
+            tasks.findByName("packageDistributionForCurrentOS")?.let { mustRunAfter(it) }
+            tasks.findByName("createReleaseDistributable")?.let { mustRunAfter(it) }
         }
     }
 }
@@ -168,11 +182,14 @@ tasks.register("validateAppImage") {
 }
 
 fun checkAppImage(dir: File): List<String> = buildList {
-    val launcher = dir.resolve("MorseCode.exe")
-    if (!launcher.isFile) add("missing launcher: MorseCode.exe")
+    val hasExeLauncher = dir.resolve("MorseCode.exe").isFile
+    val hasBatLauncher = dir.resolve("MorseCode.bat").isFile
+    if (!hasExeLauncher && !hasBatLauncher) add("missing launcher: MorseCode.exe or MorseCode.bat")
     val cfg = dir.resolve("app/MorseCode.cfg")
-    if (!cfg.isFile) {
+    if (!cfg.isFile && hasExeLauncher) {
         add("missing app/MorseCode.cfg")
+    } else if (!cfg.isFile) {
+        // bat launcher layout: no cfg needed
     } else {
         val entries = cfg.readLines()
             .filter { it.startsWith("app.classpath=") }
