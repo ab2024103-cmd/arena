@@ -17,12 +17,20 @@ import android.os.IBinder
 class MorseForegroundService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
-    override fun onCreate() {
-        super.onCreate()
-        // When the user swipes the app out of recents, stop this service and
-        // remove its notification instead of letting it linger in the
-        // background (which previously required a force-stop to clear).
-        stopWithTask(true)
+
+
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        super.onTaskRemoved(rootIntent)
+        // The user swiped the app out of recents: stop the service and remove
+        // its notification instead of letting it linger in the background
+        // (which previously required a force-stop to clear).
+        if (Build.VERSION.SDK_INT >= 24) {
+            stopForeground(Service.STOP_FOREGROUND_REMOVE)
+        } else {
+            @Suppress("DEPRECATION")
+            stopForeground(true)
+        }
+        stopSelf()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
