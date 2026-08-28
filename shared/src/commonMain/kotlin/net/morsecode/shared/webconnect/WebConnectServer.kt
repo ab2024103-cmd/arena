@@ -17,6 +17,7 @@ data class WebConnectStatus(
 )
 
 /** Files the device owner marked shared for the current session (H.1). */
+@kotlinx.serialization.Serializable
 data class SharedSessionFile(
     val id: String,
     val displayName: String,
@@ -75,19 +76,22 @@ class WebConnectServer(
     private val _status = MutableStateFlow(WebConnectStatus())
     val status: StateFlow<WebConnectStatus> = _status
 
-    private val _sharedFiles = MutableStateFlow<List<SharedSessionFile>>(emptyList())
+    private val _sharedFiles = MutableStateFlow(loadedSharedFiles())
     val sharedFiles: StateFlow<List<SharedSessionFile>> = _sharedFiles
 
     fun addSharedFile(file: SharedSessionFile) {
         _sharedFiles.value = _sharedFiles.value + file
+        persistSharedFiles(_sharedFiles.value)
     }
 
     fun removeSharedFile(id: String) {
         _sharedFiles.value = _sharedFiles.value.filterNot { it.id == id }
+        persistSharedFiles(_sharedFiles.value)
     }
 
     fun clearShared() {
         _sharedFiles.value = emptyList()
+        persistSharedFiles(_sharedFiles.value)
     }
 
     fun start(port: Int = 8080) {
@@ -126,5 +130,25 @@ class WebConnectServer(
         } catch (e: Exception) {
             null
         }
+    }
+}
+
+private const val SHARED_FILES_KEY = "webconnect_shared_files"
+private val sharedFilesJson = kotlinx.serialization.json.Json { ignoreUnknownKeys = true }
+
+private fun loadedSharedFiles(): List<SharedSessionFile> = try {
+    val raw = net.morsecode.shared.storage.ServiceLocator.settings.get(SHARED_FILES_KEY) ?: return emptyList()
+    sharedFilesJson.decodeFromString(kotlinx.serialization.builtins.ListSerializer(SharedSessionFile.serializer()), raw)
+} catch (_: Exception) {
+    emptyList()
+}
+
+private fun persistSharedFiles(files: List<SharedSessionFile>) {
+    try {
+        net.morsecode.shared.storage.ServiceLocator.settings.put(
+            SHARED_FILES_KEY,
+            sharedFilesJson.encodeToString(kotlinx.serialization.builtins.ListSerializer(SharedSessionFile.serializer()), files),
+        )
+    } catch (_: Exception) {
     }
 }

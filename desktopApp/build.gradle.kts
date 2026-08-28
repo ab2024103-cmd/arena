@@ -27,6 +27,10 @@ kotlin {
 dependencies {
     implementation(project(":shared"))
     implementation(compose.desktop.currentOs)
+    // Provides Dispatchers.Main on the desktop JVM (AppViewModel and the file
+    // picker use it; without this module every connect tap / browse crashed
+    // with "Module with the Main dispatcher is missing").
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-swing:1.9.0")
 }
 
 compose.desktop {

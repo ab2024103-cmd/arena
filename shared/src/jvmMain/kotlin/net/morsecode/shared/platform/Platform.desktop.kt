@@ -65,8 +65,17 @@ object DesktopDirs {
 
 actual fun buildPlatformDeps(context: PlatformContext?): PlatformDeps {
     val driver: SqlDriver = JdbcSqliteDriver("jdbc:sqlite:" + DesktopDirs.dbFile.absolutePath)
-    if (!DesktopDirs.dbFile.exists() || DesktopDirs.dbFile.length() == 0L) {
-        MorseDb.Schema.create(driver)
+    // Idempotent schema init: rapid relaunches raced the file-existence check
+    // and crashed with "table history_entry already exists". Run CREATE TABLE
+    // IF NOT EXISTS for every statement on every startup instead.
+    runCatching {
+        for (stmt in MorseDb.Schema.statements) {
+            driver.execute(
+                null,
+                stmt.replace("CREATE TABLE ", "CREATE TABLE IF NOT EXISTS ", ignoreCase = true),
+                0,
+            )
+        }
     }
     return PlatformDeps(
         driver = driver,

@@ -33,7 +33,7 @@ import net.morsecode.shared.ui.AppViewModel
 import net.morsecode.shared.ui.theme.ThemeMode
 
 @Composable
-fun SettingsScreen(vm: AppViewModel) {
+fun SettingsScreen(vm: AppViewModel, onNavigate: ((net.morsecode.shared.ui.Route) -> Unit)? = null) {
     val deviceName by vm.deviceName.collectAsState()
     val theme by vm.themeMode.collectAsState()
     val autoAccept by vm.autoAccept.collectAsState()
@@ -46,6 +46,21 @@ fun SettingsScreen(vm: AppViewModel) {
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
+        if (onNavigate != null) {
+            Card(Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(16.dp)) {
+                    Text("Web Connect", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        "Pair a PC browser to browse, download and send files.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    TextButton(onClick = { onNavigate(net.morsecode.shared.ui.Route.Web) }) {
+                        Text("Open Web Connect")
+                    }
+                }
+            }
+        }
         Card(Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp)) {
                 Text("Device", style = MaterialTheme.typography.titleMedium)

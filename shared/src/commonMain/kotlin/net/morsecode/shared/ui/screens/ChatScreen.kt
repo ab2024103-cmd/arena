@@ -1,5 +1,6 @@
 package net.morsecode.shared.ui.screens
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -11,7 +12,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -46,21 +49,45 @@ fun ChatScreen(vm: AppViewModel, onNavigate: (net.morsecode.shared.ui.Route) -> 
         return
     }
 
+    val known by vm.knownDevices.collectAsState()
+    val history by vm.historyRepo.entries.collectAsState()
+    fun displayName(peerId: String): String =
+        devices.firstOrNull { it.deviceId == peerId }?.name
+            ?: known.firstOrNull { it.deviceId == peerId }?.name
+            ?: history.firstOrNull { it.peerDeviceId == peerId }?.peerName
+            ?: "Device ${peerId.take(6)}"
+
     Column(Modifier.fillMaxSize()) {
         if (threads.isNotEmpty()) {
-            SectionHeader("Conversations")
+            SectionHeader("Conversations - tap to open")
             threads.forEach { (peerId, messages) ->
                 val last = messages.lastOrNull() ?: return@forEach
-                DeviceListItem(
-                    device = net.morsecode.shared.net.DeviceInfo(
-                        deviceId = peerId, name = peerId.take(8) + "…", deviceType = "chat",
-                        ip = "-", port = 0,
-                    ),
-                    onClick = {
-                        activePeer = devices.firstOrNull { it.deviceId == peerId }
-                            ?: net.morsecode.shared.net.DeviceInfo(peerId, peerId, "chat", "-", 0)
-                    },
-                )
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 4.dp)
+                        .clickable {
+                            activePeer = devices.firstOrNull { it.deviceId == peerId }
+                                ?: net.morsecode.shared.net.DeviceInfo(peerId, displayName(peerId), "chat", "-", 0)
+                        },
+                ) {
+                    Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text(displayName(peerId), style = MaterialTheme.typography.titleSmall)
+                            Text(
+                                last.text,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                            )
+                        }
+                        Icon(
+                            Icons.Filled.ChevronRight,
+                            contentDescription = "open",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
             }
         }
         SectionHeader("Nearby devices")

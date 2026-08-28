@@ -8,10 +8,17 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Chat
+import androidx.compose.material.icons.filled.Groups
+import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.VideoLibrary
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -61,6 +68,7 @@ sealed class Route {
     data object Send : Route()
     data object Receive : Route()
     data object Room : Route()
+    data object History : Route()
     data object TextShare : Route()
     data class PhotoViewer(val photos: List<PhotoItem>, val startIndex: Int) : Route()
     data class VideoPlayerRoute(val uri: String, val title: String) : Route()
@@ -68,7 +76,10 @@ sealed class Route {
     data class FilesCategory(val categoryId: String, val label: String) : Route()
 }
 
-private val bottomTabs = listOf<Route>(Route.Home, Route.Library, Route.Chat, Route.Web, Route.Settings)
+private val desktopTabs = listOf<Route>(Route.Home, Route.Send, Route.Receive, Route.History, Route.Settings)
+private val mobileTabs = listOf<Route>(Route.Home, Route.Library, Route.Chat, Route.Room, Route.Settings)
+private fun bottomTabs(): List<Route> =
+    if (net.morsecode.shared.platform.isDesktopPlatform) desktopTabs else mobileTabs
 
 @Composable
 fun MorseCodeApp(vm: AppViewModel) {
@@ -88,7 +99,7 @@ fun MorseCodeApp(vm: AppViewModel) {
 fun AppRoot(vm: AppViewModel) {
     val backStack = remember { mutableStateListOf<Route>(Route.Home) }
     val current = backStack.last()
-    val isTab = bottomTabs.any { it::class == current::class }
+    val isTab = bottomTabs().any { it::class == current::class }
 
     val pop: () -> Unit = { if (backStack.size > 1) backStack.removeAt(backStack.size - 1) }
     val push: (Route) -> Unit = { backStack.add(it) }
@@ -101,8 +112,38 @@ fun AppRoot(vm: AppViewModel) {
     Box(Modifier.fillMaxSize()) {
         Row(Modifier.fillMaxSize()) {
             if (net.morsecode.shared.platform.isDesktopPlatform) {
-                NavigationRail {
-                    bottomTabs.forEach { tab ->
+                NavigationRail(modifier = Modifier.fillMaxHeight()) {
+                    // App identity header (reference design)
+                    Column(Modifier.padding(vertical = 8.dp)) {
+                        Surface(
+                            color = MaterialTheme.colorScheme.primary,
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier.size(36.dp),
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Text(
+                                    "M",
+                                    color = MaterialTheme.colorScheme.onPrimary,
+                                    style = MaterialTheme.typography.titleMedium,
+                                )
+                            }
+                        }
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            vm.profile.name,
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier.padding(start = 2.dp),
+                        )
+                        Text(
+                            "Offline Transfer",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(start = 2.dp),
+                        )
+                    }
+                    Spacer(Modifier.weight(0.4f))
+                    bottomTabs().forEach { tab ->
                         val (icon, label) = tabMeta(tab)
                         NavigationRailItem(
                             selected = tab::class == current::class,
@@ -111,18 +152,38 @@ fun AppRoot(vm: AppViewModel) {
                             label = { Text(label) },
                         )
                     }
+                    Spacer(Modifier.weight(1f))
+                    // Status footer
+                    Row(Modifier.padding(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            Modifier.size(8.dp).background(
+                                Color(0xFF3DDC84),
+                                RoundedCornerShape(4.dp),
+                            ),
+                        )
+                        Spacer(Modifier.width(6.dp))
+                        Text(
+                            "Discovering",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Text(
+                        "v1.0.0 - Desktop",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(start = 6.dp, bottom = 8.dp),
+                    )
                 }
             }
             Box(Modifier.weight(1f).padding(bottom = if (!isTab) 0.dp else 0.dp)) {
                 when (val route = current) {
-                    is Route.Home -> HomeScreen(vm, onNavigate = push)
+                    is Route.Home -> PlatformHomeScreen(vm, onNavigate = push)
                     is Route.Library -> LibraryScreen(vm, onNavigate = push)
                     is Route.Chat -> ChatScreen(vm, onNavigate = push)
                     is Route.Web -> WebConnectScreen(vm, onNavigate = push)
-                    is Route.Settings -> SettingsScreen(vm)
-                    is Route.Send -> ScreenScaffold(title = "Send", onBack = pop) {
-                        SendScreen(vm, onDone = pop)
-                    }
+                    is Route.Settings -> SettingsScreen(vm, onNavigate = push)
+                    is Route.Send -> PlatformSendScreen(vm, onDone = pop)
                     is Route.Receive -> ScreenScaffold(title = "Receive", onBack = pop) {
                         ReceiveScreen(vm)
                     }
@@ -146,13 +207,16 @@ fun AppRoot(vm: AppViewModel) {
                     is Route.FilesCategory -> ScreenScaffold(title = route.label, onBack = pop) {
                         FilesCategoryScreen(vm, route.categoryId)
                     }
+                    is Route.History -> ScreenScaffold(title = "History", onBack = pop) {
+                        HistoryTab(vm)
+                    }
                 }
             }
         }
 
         if (!net.morsecode.shared.platform.isDesktopPlatform && isTab) {
             NavigationBar(modifier = Modifier.align(Alignment.BottomCenter)) {
-                bottomTabs.forEach { tab ->
+                bottomTabs().forEach { tab ->
                     val (icon, label) = tabMeta(tab)
                     NavigationBarItem(
                         selected = tab::class == current::class,
@@ -193,6 +257,10 @@ private fun tabMeta(route: Route): Pair<ImageVector, String> = when (route) {
     is Route.Chat -> Pair(Icons.Filled.Chat, "Chat")
     is Route.Web -> Pair(Icons.Filled.Language, "Web")
     is Route.Settings -> Pair(Icons.Filled.Settings, "Settings")
+    is Route.Send -> Pair(Icons.Filled.Upload, "Send")
+    is Route.Receive -> Pair(Icons.Filled.Download, "Receive")
+    is Route.History -> Pair(Icons.Filled.History, "History")
+    is Route.Room -> Pair(Icons.Filled.Groups, "Room")
     else -> Pair(Icons.Filled.Home, "")
 }
 

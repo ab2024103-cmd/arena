@@ -151,25 +151,38 @@ fun ManualConnectDialog(vm: AppViewModel, onDismiss: () -> Unit) {
     var ipPort by remember { mutableStateOf("") }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Connect manually") },
+        title = { Text("Connect to a device") },
         text = {
             Column {
-                Text("Enter the peer address as ip:port", style = MaterialTheme.typography.bodyMedium)
+                Text(
+                    "Enter the other device's IP address (shown on its Home screen). " +
+                        "Port is optional - 53317 is used by default. Works on hotspots.",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
                 Spacer(Modifier.height(8.dp))
-                OutlinedTextField(value = ipPort, onValueChange = { ipPort = it }, label = { Text("e.g. 192.168.1.20:53317") })
+                OutlinedTextField(
+                    value = ipPort,
+                    onValueChange = { ipPort = it },
+                    label = { Text("e.g. 192.168.43.1  (or ip:port)") },
+                    singleLine = true,
+                )
             }
         },
         confirmButton = {
             TextButton(onClick = {
-                val parts = ipPort.trim().split(":")
-                if (parts.size == 2) {
+                val raw = ipPort.trim()
+                val host = raw.substringBefore(":").removePrefix("http://").removeSuffix("/")
+                val port = raw.substringAfter(":", "").toIntOrNull() ?: 53317
+                if (host.isNotEmpty()) {
                     val device = net.morsecode.shared.net.DeviceInfo(
-                        deviceId = "manual-${parts[0]}", name = parts[0],
-                        deviceType = "manual", ip = parts[0], port = parts[1].toIntOrNull() ?: 53317,
+                        deviceId = "manual-$host", name = host,
+                        deviceType = "manual", ip = host, port = port,
                     )
-                    vm.connect(device) { ok, err -> vm.toast(if (ok) "Connected" else "Failed: $err") }
+                    vm.connect(device) { ok, err ->
+                        vm.toast(if (ok) "Connected to $host" else "Failed: $err")
+                        if (ok) onDismiss()
+                    }
                 }
-                onDismiss()
             }) { Text("Connect") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },

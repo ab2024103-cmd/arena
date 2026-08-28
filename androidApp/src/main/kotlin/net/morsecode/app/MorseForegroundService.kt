@@ -84,5 +84,9 @@ class MorseForegroundService : Service() {
                 // FGS restrictions on some OEM ROMs; app still works in-foreground
             }
         }
+
+        fun stop(context: Context) {
+            runCatching { context.stopService(Intent(context, MorseForegroundService::class.java)) }
+        }
     }
 }
