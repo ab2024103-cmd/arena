@@ -5,9 +5,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.History
-import androidx.compose.material.icons.automirrored.filled.Image
-import androidx.compose.material.icons.automirrored.filled.VideoLibrary
+import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.VideoLibrary
 import androidx.compose.material.icons.filled.Apps
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.MusicNote
@@ -30,10 +30,10 @@ import net.morsecode.shared.ui.Route
 private data class LibraryTab(val label: String, val icon: ImageVector)
 
 private val libraryTabs = listOf(
-    LibraryTab("History", Icons.AutoMirrored.Filled.History),
+    LibraryTab("History", Icons.Filled.History),
     LibraryTab("Apps", Icons.Filled.Apps),
-    LibraryTab("Photos", Icons.AutoMirrored.Filled.Image),
-    LibraryTab("Videos", Icons.AutoMirrored.Filled.VideoLibrary),
+    LibraryTab("Photos", Icons.Filled.Image),
+    LibraryTab("Videos", Icons.Filled.VideoLibrary),
     LibraryTab("Music", Icons.Filled.MusicNote),
     LibraryTab("Files", Icons.Filled.Folder),
 )
