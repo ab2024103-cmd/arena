@@ -23,12 +23,11 @@ compose.desktop {
         mainClass = "net.morsecode.desktop.MainKt"
 
         buildTypes.release.proguard {
-            // The default release shrinker mangles the packaged jars so the
-            // entrypoint class is missing at runtime (ClassNotFoundException:
-            // net.morsecode.desktop.MainKt) - the launcher then exits silently.
-            // Minification is deliberately off for v1.0 reliability (mirrors
-            // the Android app's choice).
-            isEnabled.set(false)
+            // Keep the default release pipeline (it packages the main jar),
+            // but force-keep all project classes: the default rules stripped
+            // the entrypoint from the packaged jars, so the launcher died with
+            // ClassNotFoundException: net.morsecode.desktop.MainKt.
+            configurationFiles.from(project.file("proguard-desktop.pro"))
         }
 
         nativeDistributions {
