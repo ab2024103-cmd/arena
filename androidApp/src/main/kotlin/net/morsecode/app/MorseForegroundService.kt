@@ -17,6 +17,14 @@ import android.os.IBinder
 class MorseForegroundService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
+    override fun onCreate() {
+        super.onCreate()
+        // When the user swipes the app out of recents, stop this service and
+        // remove its notification instead of letting it linger in the
+        // background (which previously required a force-stop to clear).
+        stopWithTask(true)
+    }
+
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         createChannel()
         val notification: Notification = if (Build.VERSION.SDK_INT >= 26) {

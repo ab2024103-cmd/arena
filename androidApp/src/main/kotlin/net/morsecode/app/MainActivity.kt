@@ -19,7 +19,12 @@ import net.morsecode.shared.ui.MorseCodeApp
 
 class MainActivity : ComponentActivity() {
 
-    private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private val appScope = CoroutineScope(
+        SupervisorJob() + Dispatchers.Default +
+            kotlinx.coroutines.CoroutineExceptionHandler { _, e ->
+                CrashLog.log(applicationContext, "appScope", e)
+            },
+    )
     private var viewModel: AppViewModel? = null
 
     private val mediaPermissions = registerForActivityResult(

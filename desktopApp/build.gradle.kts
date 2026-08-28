@@ -21,6 +21,15 @@ compose.desktop {
     application {
         mainClass = "net.morsecode.desktop.MainKt"
 
+        buildTypes.release.proguard {
+            // The default release shrinker mangles the packaged jars so the
+            // entrypoint class is missing at runtime (ClassNotFoundException:
+            // net.morsecode.desktop.MainKt) - the launcher then exits silently.
+            // Minification is deliberately off for v1.0 reliability (mirrors
+            // the Android app's choice).
+            isEnabled.set(false)
+        }
+
         nativeDistributions {
             targetFormats(TargetFormat.Msi, TargetFormat.Exe)
             packageName = "MorseCode"
@@ -185,6 +194,19 @@ fun checkAppImage(dir: File): List<String> = buildList {
     }
     val javaExe = dir.resolve("runtime/bin/java.exe")
     if (!javaExe.isFile) add("bundled JRE missing runtime/bin/java.exe")
-    val appJarCount = dir.resolve("app").listFiles()?.count { it.isFile && it.extension == "jar" } ?: 0
-    if (appJarCount == 0) add("no jars in app/")
+    val appJars = dir.resolve("app").listFiles()?.filter { it.isFile && it.extension == "jar" } ?: emptyList()
+    if (appJars.isEmpty()) {
+        add("no jars in app/")
+    } else {
+        // The launcher loads net.morsecode.desktop.MainKt by name; verify it
+        // is really present in one of the packaged jars.
+        val hasMainClass = appJars.any { jar ->
+            try {
+                java.util.zip.ZipFile(jar).use { zf -> zf.getEntry("net/morsecode/desktop/MainKt.class") != null }
+            } catch (_: Exception) {
+                false
+            }
+        }
+        if (!hasMainClass) add("net.morsecode.desktop.MainKt not found in any jar in app/ (entrypoint stripped?)")
+    }
 }
