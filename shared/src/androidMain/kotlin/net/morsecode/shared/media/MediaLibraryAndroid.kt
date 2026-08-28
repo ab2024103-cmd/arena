@@ -13,7 +13,7 @@ import java.io.File
 class MediaLibraryAndroid(private val context: Context) : MediaLibrary {
 
     override suspend fun getPhotos(): List<PhotoItem> = withContext(Dispatchers.IO) {
-        queryCollection(MediaStore.Images.Media.EXTERNAL_CONTENT_URI) { c ->
+        queryCollection(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, "date_modified DESC") { c ->
             val id = c.getLong(c.getColumnIndexOrThrow(MediaStore.Images.Media._ID))
             val uri = Uri.withAppendedPath(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id.toString()).toString()
             PhotoItem(
@@ -29,7 +29,7 @@ class MediaLibraryAndroid(private val context: Context) : MediaLibrary {
     }
 
     override suspend fun getVideos(): List<VideoItem> = withContext(Dispatchers.IO) {
-        queryCollection(MediaStore.Video.Media.EXTERNAL_CONTENT_URI) { c ->
+        queryCollection(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, "date_modified DESC") { c ->
             val id = c.getLong(c.getColumnIndexOrThrow(MediaStore.Video.Media._ID))
             val uri = Uri.withAppendedPath(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, id.toString()).toString()
             VideoItem(
@@ -46,7 +46,7 @@ class MediaLibraryAndroid(private val context: Context) : MediaLibrary {
     }
 
     override suspend fun getAudio(): List<AudioItem> = withContext(Dispatchers.IO) {
-        queryCollection(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI) { c ->
+        queryCollection(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, "date_added DESC") { c ->
             val id = c.getLong(c.getColumnIndexOrThrow(MediaStore.Audio.Media._ID))
             val uri = Uri.withAppendedPath(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, id.toString()).toString()
             AudioItem(
@@ -84,11 +84,16 @@ class MediaLibraryAndroid(private val context: Context) : MediaLibrary {
 
     override suspend fun shareRoots(): List<String> = listOf("Download/MorseCode")
 
-    private fun <T> queryCollection(uri: Uri, map: (android.database.Cursor) -> T): List<T> {
+    private fun <T> queryCollection(
+        uri: Uri,
+        sort: String? = null,
+        limit: Int = 2000,
+        map: (android.database.Cursor) -> T,
+    ): List<T> {
         val out = ArrayList<T>(256)
         return try {
-            context.contentResolver.query(uri, null, null, null, null)?.use { c ->
-                while (c.moveToNext() && out.size < 5000) out.add(map(c))
+            context.contentResolver.query(uri, null, null, null, sort)?.use { c ->
+                while (c.moveToNext() && out.size < limit) out.add(map(c))
             }
             out
         } catch (e: Exception) {

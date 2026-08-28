@@ -115,6 +115,24 @@ class AppViewModel(val scope: CoroutineScope) {
     }
     private val _sendProgress = MutableStateFlow<SendProgressState?>(null)
     val sendProgress: StateFlow<SendProgressState?> = _sendProgress
+
+    /** Devices connected via QR/manual that discovery may not see (e.g. hotspot networks block mDNS). */
+    private val _knownDevices = MutableStateFlow<List<DeviceInfo>>(emptyList())
+    val knownDevices: StateFlow<List<DeviceInfo>> = _knownDevices
+
+    fun addKnownDevice(device: DeviceInfo) {
+        _knownDevices.value =
+            (listOf(device) + _knownDevices.value).distinctBy { it.deviceId }.take(20)
+    }
+
+    /** Cancels a queued/transferring send batch and notifies recipients. */
+    fun cancelSend(batchId: String) {
+        val coordinator = activeCoordinators[batchId]
+        if (coordinator != null) {
+            coordinator.cancel()
+            toast("Transfer cancelled")
+        }
+    }
     private val _toast = MutableStateFlow<String?>(null)
     val toast: StateFlow<String?> = _toast
     private val _pairingQr = MutableStateFlow<String?>(null)
@@ -156,7 +174,10 @@ class AppViewModel(val scope: CoroutineScope) {
                     isTrustedRequest = trustedRepo.isTrusted(device.deviceId),
                 )
                 sessions.register(conn)
-                withContext(Dispatchers.Main) { onDone(true, null) }
+                withContext(Dispatchers.Main) {
+                    addKnownDevice(device)
+                    onDone(true, null)
+                }
             } catch (e: HandshakeRejectedException) {
                 withContext(Dispatchers.Main) { onDone(false, e.reason) }
             } catch (e: Exception) {
@@ -182,7 +203,10 @@ class AppViewModel(val scope: CoroutineScope) {
                     isTrustedRequest = trustedRepo.isTrusted(payload.device_id),
                 )
                 sessions.register(conn)
-                withContext(Dispatchers.Main) { onDone(true, null) }
+                withContext(Dispatchers.Main) {
+                    addKnownDevice(device)
+                    onDone(true, null)
+                }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) { onDone(false, e.message ?: "connect_failed") }
             }
@@ -259,7 +283,7 @@ class AppViewModel(val scope: CoroutineScope) {
                     overallPercent = states.map { it.percent }.average().toFloat(),
                     recipients = states,
                 )
-                if (states.all { it.state == "completed" || it.state == "failed" || it.state == "rejected" }) {
+                if (states.all { it.state == "completed" || it.state == "failed" || it.state == "rejected" || it.state == "cancelled" }) {
                     // record one history entry per file (batch)
                     val ts = System.currentTimeMillis()
                     for (f in files) {

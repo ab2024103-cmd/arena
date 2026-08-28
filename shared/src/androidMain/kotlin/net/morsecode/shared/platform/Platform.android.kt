@@ -35,6 +35,18 @@ import net.morsecode.shared.player.AudioPlaybackController
 import net.morsecode.shared.player.AudioPlaybackControllerAndroid
 import net.morsecode.shared.storage.PlatformDeps
 
+actual fun systemDarkThemeEnabled(): Boolean? = try {
+    val mode = AndroidEnv.appContext.resources.configuration.uiMode and
+        android.content.res.Configuration.UI_MODE_NIGHT_MASK
+    when (mode) {
+        android.content.res.Configuration.UI_MODE_NIGHT_YES -> true
+        android.content.res.Configuration.UI_MODE_NIGHT_NO -> false
+        else -> null
+    }
+} catch (_: Exception) {
+    null
+}
+
 actual val isDesktopPlatform: Boolean = false
 
 actual fun platformDeviceType(): String = "android"

@@ -45,10 +45,15 @@ private val DarkColors = darkColorScheme(
 
 enum class ThemeMode { SYSTEM, LIGHT, DARK }
 
+private val platformSystemDark: Boolean?
+    get() = runCatching { net.morsecode.shared.platform.systemDarkThemeEnabled() }.getOrNull()
+
 @Composable
 fun MorseTheme(themeMode: ThemeMode, content: @Composable () -> Unit) {
+    // Desktop JVM does not reliably report the OS theme via
+    // isSystemInDarkTheme(); prefer the platform-detected value.
     val dark = when (themeMode) {
-        ThemeMode.SYSTEM -> isSystemInDarkTheme()
+        ThemeMode.SYSTEM -> platformSystemDark ?: isSystemInDarkTheme()
         ThemeMode.LIGHT -> false
         ThemeMode.DARK -> true
     }

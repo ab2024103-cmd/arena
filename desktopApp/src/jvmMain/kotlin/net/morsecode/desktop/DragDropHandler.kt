@@ -19,6 +19,14 @@ import net.morsecode.shared.ui.AppViewModel
 fun WindowScope.DragDropHost(vm: AppViewModel) {
     DisposableEffect(Unit) {
         val adapter = object : DropTargetAdapter() {
+            override fun dragEnter(event: DropTargetDragEvent) {
+                event.acceptDrag(DnDConstants.ACTION_COPY)
+            }
+
+            override fun dragOver(event: DropTargetDragEvent) {
+                event.acceptDrag(DnDConstants.ACTION_COPY)
+            }
+
             override fun drop(event: DropTargetDropEvent) {
                 event.acceptDrop(DnDConstants.ACTION_COPY)
                 val files = runCatching {
@@ -35,7 +43,7 @@ fun WindowScope.DragDropHost(vm: AppViewModel) {
                             mime = net.morsecode.shared.platform.guessMime(f.name),
                         )
                     }
-                    vm.toast("${files.size} file(s) dropped - open Home > Send to choose recipients")
+                    vm.toast("${files.size} file(s) added - open Home > Send to choose recipients")
                 }
             }
         }

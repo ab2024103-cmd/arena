@@ -28,9 +28,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.launch
 import net.morsecode.shared.media.FileCategorizer
 import net.morsecode.shared.media.GenericFile
 import net.morsecode.shared.storage.ServiceLocator
@@ -49,9 +51,26 @@ fun FilesTab(vm: AppViewModel, initialCategory: String?, onNavigate: (Route) -> 
     var openCategory by remember { mutableStateOf(initialCategory) }
     var usage by remember { mutableStateOf<net.morsecode.shared.media.StorageUsage?>(null) }
 
+    val browseScope = rememberCoroutineScope()
+
     LaunchedEffect(Unit) {
         files.value = runCatching { ServiceLocator.deps.mediaLibrary.getAllFiles() }.getOrDefault(emptyList())
         usage = runCatching { ServiceLocator.deps.mediaLibrary.getStorageUsage() }.getOrNull()
+    }
+
+    // Full-storage browse: system picker with all drives (desktop) / SAF (Android).
+    Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)) {
+        Button(onClick = {
+            browseScope.launch {
+                val picked = runCatching {
+                    ServiceLocator.deps.pickFiles("Select files to share")
+                }.getOrDefault(emptyList())
+                if (picked.isNotEmpty()) {
+                    vm.pendingSendFiles.value = picked
+                    onNavigate(Route.Send)
+                }
+            }
+        }) { Text("Browse all folders…") }
     }
 
     val filtered = files.value.filter { query.isBlank() || it.filename.contains(query, true) }

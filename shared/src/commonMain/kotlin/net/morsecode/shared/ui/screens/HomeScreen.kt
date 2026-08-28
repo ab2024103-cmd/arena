@@ -17,6 +17,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.QrCode
 import androidx.compose.material.icons.filled.GroupAdd
+import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.Share
@@ -50,7 +51,13 @@ import net.morsecode.shared.ui.components.QrDisplay
 
 @Composable
 fun HomeScreen(vm: AppViewModel, onNavigate: (Route) -> Unit) {
-    val devices by vm.devices.collectAsState()
+    val discovered by vm.devices.collectAsState()
+    val known by vm.knownDevices.collectAsState()
+    // Show QR/manual-paired devices even when mDNS discovery is blocked
+    // (common on phone hotspots).
+    val devices = remember(discovered, known) {
+        (known + discovered).distinctBy { it.deviceId }
+    }
     var showQr by remember { mutableStateOf<String?>(null) }
     var showManual by remember { mutableStateOf(false) }
     var scanning by remember { mutableStateOf(false) }
@@ -78,6 +85,7 @@ fun HomeScreen(vm: AppViewModel, onNavigate: (Route) -> Unit) {
                     IconBubble(Icons.Filled.Share, "Receive") { onNavigate(Route.Receive) }
                     IconBubble(Icons.Filled.QrCode, "My QR") { showQr = vm.newPairingQr() }
                     IconBubble(Icons.Filled.QrCodeScanner, "Scan") { scanning = true }
+                    IconBubble(Icons.Filled.Link, "Manual") { showManual = true }
                     IconBubble(Icons.Filled.GroupAdd, "Room") { onNavigate(Route.Room) }
                     IconBubble(Icons.Filled.TextFields, "Text") { onNavigate(Route.TextShare) }
                 }
@@ -92,7 +100,12 @@ fun HomeScreen(vm: AppViewModel, onNavigate: (Route) -> Unit) {
         Spacer(Modifier.height(4.dp))
 
         if (devices.isEmpty()) {
-            EmptyState("Searching for nearby Morse Code devices…\nMake sure both devices are on the same Wi-Fi.")
+            EmptyState(
+                "Searching for nearby Morse Code devices…\n" +
+                    "Make sure both devices are on the same Wi-Fi.\n\n" +
+                    "Hotspot connections often block device discovery - use Scan (QR) " +
+                    "or Manual (IP) above; both work on hotspots.",
+            )
         } else {
             LazyColumn(Modifier.fillMaxSize()) {
                 items(devices, key = { it.deviceId }) { device ->

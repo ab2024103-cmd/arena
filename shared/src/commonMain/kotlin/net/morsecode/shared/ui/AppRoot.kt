@@ -73,7 +73,14 @@ private val bottomTabs = listOf<Route>(Route.Home, Route.Library, Route.Chat, Ro
 @Composable
 fun MorseCodeApp(vm: AppViewModel) {
     net.morsecode.shared.ui.theme.MorseTheme(vm.themeMode.collectAsState().value) {
-        AppRoot(vm)
+        // Root Surface paints the theme background: without it the (light)
+        // window/activity background shows through in dark mode.
+        androidx.compose.material3.Surface(
+            modifier = Modifier.fillMaxSize(),
+            color = androidx.compose.material3.MaterialTheme.colorScheme.background,
+        ) {
+            AppRoot(vm)
+        }
     }
 }
 
@@ -263,7 +270,10 @@ private fun SendProgressOverlay(vm: AppViewModel) {
                 }
             },
             confirmButton = {
-                TextButton(onClick = { vm.dismissSendProgress() }) { Text("Hide") }
+                Row {
+                    TextButton(onClick = { vm.cancelSend(sp.batchId) }) { Text("Cancel") }
+                    TextButton(onClick = { vm.dismissSendProgress() }) { Text("Hide") }
+                }
             },
         )
     }

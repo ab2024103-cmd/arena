@@ -44,6 +44,28 @@ class BroadcastCoordinator(
     val batchId: String = Crypto.randomId()
     private val semaphore = Semaphore(MAX_CONCURRENT_RECIPIENTS)
 
+    // ---- cancellation support ----
+    @Volatile
+    var cancelled = false
+        private set
+    private val jobs = ArrayList<kotlinx.coroutines.Job>()
+    private val connections = java.util.concurrent.ConcurrentHashMap<String, MorseConnection>()
+
+    /** Cancels all pending/queued/transferring sends for this batch. */
+    fun cancel() {
+        if (cancelled) return
+        cancelled = true
+        jobs.forEach { it.cancel() }
+        connections.values.forEach { conn ->
+            runCatching { conn.send(TransferCancelMsg(batchId, "cancelled_by_sender")) }
+            runCatching { conn.close() }
+        }
+        connections.clear()
+        _states.value = _states.value.map {
+            if (it.state in FINAL_STATES) it else it.copy(state = "cancelled")
+        }
+    }
+
     private val _states = MutableStateFlow<List<RecipientTransferState>>(
         targets.map { RecipientTransferState(it.deviceId, it.name, "queued") },
     )
@@ -67,13 +89,15 @@ class BroadcastCoordinator(
 
     fun start() {
         for (target in targets) {
-            scope.launch {
+            val job = scope.launch {
                 semaphore.withPermit { runFor(target) }
             }
+            jobs.add(job)
         }
     }
 
     private suspend fun runFor(target: DeviceInfo) {
+        if (cancelled) return
         updateState(target.deviceId) { it.copy(state = "connecting") }
         try {
             val connection = Handshake.initiate(
@@ -94,6 +118,12 @@ class BroadcastCoordinator(
                     thumbnail_base64 = f.thumbnailBase64,
                 )
             }
+            if (cancelled) {
+                connection.close()
+                updateState(target.deviceId) { it.copy(state = "cancelled") }
+                return
+            }
+            connections[target.deviceId] = connection
             val request = TransferRequest(transferId, batchId, manifests)
             connection.send(request)
             val response = waitForResponse(connection)
@@ -126,13 +156,23 @@ class BroadcastCoordinator(
                     return
                 }
             }
+            if (cancelled) {
+                connection.close()
+                return
+            }
             connection.send(TransferCompleteMsg(transferId, ok = true))
             updateState(target.deviceId) { it.copy(state = "completed", percent = 1f) }
             connection.close()
         } catch (e: HandshakeRejectedException) {
-            updateState(target.deviceId) { it.copy(state = "failed", error = e.reason) }
+            updateState(target.deviceId) {
+                if (cancelled) it.copy(state = "cancelled") else it.copy(state = "failed", error = e.reason)
+            }
         } catch (e: Exception) {
-            updateState(target.deviceId) { it.copy(state = "failed", error = e.message) }
+            updateState(target.deviceId) {
+                if (cancelled) it.copy(state = "cancelled") else it.copy(state = "failed", error = e.message)
+            }
+        } finally {
+            connections.remove(target.deviceId)
         }
     }
 
@@ -152,5 +192,6 @@ class BroadcastCoordinator(
 
     companion object {
         const val MAX_CONCURRENT_RECIPIENTS = 6
+        private val FINAL_STATES = setOf("completed", "failed", "rejected", "cancelled")
     }
 }

@@ -24,6 +24,26 @@ import net.morsecode.shared.player.AudioPlaybackController
 import net.morsecode.shared.player.AudioPlaybackControllerDesktop
 import net.morsecode.shared.storage.PlatformDeps
 
+/** Windows dark mode via the AppsUseLightTheme registry value. */
+private val windowsSystemDark: Boolean? by lazy {
+    if (!System.getProperty("os.name").lowercase().contains("windows")) return@lazy null
+    runCatching {
+        val p = ProcessBuilder(
+            "reg", "query", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize",
+            "/v", "AppsUseLightTheme",
+        ).start()
+        val out = p.inputStream.bufferedReader().readText()
+        p.waitFor()
+        when {
+            out.contains("0x0") -> true
+            out.contains("0x1") -> false
+            else -> null
+        }
+    }.getOrNull()
+}
+
+actual fun systemDarkThemeEnabled(): Boolean? = windowsSystemDark
+
 actual val isDesktopPlatform: Boolean = true
 
 actual fun platformDeviceType(): String = "windows"
@@ -59,19 +79,30 @@ actual fun buildPlatformDeps(context: PlatformContext?): PlatformDeps {
     )
 }
 
-private suspend fun pickFilesSwing(title: String): List<PickedFile> = withContext(Dispatchers.IO) {
-    val dialog = FileDialog(null as Frame?, title, FileDialog.LOAD)
-    dialog.isMultipleMode = true
-    dialog.filenameFilter = null
-    dialog.isVisible = true
-    dialog.files.map { f ->
-        PickedFile(
-            uri = f.absolutePath,
-            displayName = f.name,
-            sizeBytes = f.length(),
-            mime = guessMime(f.name),
-        )
+private suspend fun pickFilesSwing(title: String): List<PickedFile> = withContext(Dispatchers.Main) {
+    // JFileChooser (unlike FileDialog) browses all drives / "This PC" and
+    // allows multi-select of files and folders. Shown on the EDT (modal).
+    val chooser = javax.swing.JFileChooser()
+    chooser.dialogTitle = title
+    chooser.fileSelectionMode = javax.swing.JFileChooser.FILES_AND_DIRECTORIES
+    chooser.isMultiSelectionEnabled = true
+    chooser.approveButtonText = "Select"
+    val choice = chooser.showOpenDialog(null)
+    if (choice != javax.swing.JFileChooser.APPROVE_OPTION) return@withContext emptyList()
+
+    val out = ArrayList<PickedFile>()
+    (chooser.selectedFiles ?: emptyArray()).forEach { f ->
+        if (f.isFile) {
+            out += PickedFile(f.absolutePath, f.name, f.length(), guessMime(f.name))
+        } else if (f.isDirectory) {
+            // Convenience: include the immediate files of a selected folder.
+            f.listFiles()?.filter { it.isFile }?.take(200)?.forEach { sub ->
+                out += PickedFile(sub.absolutePath, sub.name, sub.length(), guessMime(sub.name))
+            }
+        }
+        if (out.size >= 500) return@forEach
     }
+    out.distinctBy { it.uri }
 }
 
 fun guessMime(name: String): String = when (name.substringAfterLast('.', "").lowercase()) {

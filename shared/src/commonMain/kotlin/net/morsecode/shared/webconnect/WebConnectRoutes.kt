@@ -46,9 +46,22 @@ data class WsChatMsg(
 
 private val wsJson = Json { ignoreUnknownKeys = true }
 
-fun resourceBytes(name: String): ByteArray =
-    WebConnectServer::class.java.getResourceAsStream(name)?.readBytes()
-        ?: "<h1>Morse Code Web Connect</h1><p>Frontend resource missing: $name</p>".toByteArray()
+fun resourceBytes(name: String): ByteArray = when (name) {
+    "/webapp/index.html" -> WebFrontend.indexHtml.toByteArray()
+    "/webapp/style.css" -> WebFrontend.styleCss.toByteArray()
+    "/webapp/app.js" -> WebFrontend.appJs.toByteArray()
+    else -> WebFrontend.indexHtml.toByteArray()
+}
+
+/**
+ * The Web Connect browser UI, embedded as source (no classpath resources, so
+ * it packages identically in the APK and the desktop bundles).
+ */
+object WebFrontend {
+    val styleCss = ""
+    val appJs = ""
+    val indexHtml = """$html""""
+}
 
 private fun jsonEscape(s: String): String =
     s.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "")

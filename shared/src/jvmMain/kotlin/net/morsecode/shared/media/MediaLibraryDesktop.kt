@@ -15,6 +15,18 @@ class MediaLibraryDesktop : MediaLibrary {
     private val videoExt = setOf("mp4", "mkv", "avi", "mov", "wmv", "flv", "webm", "m4v", "mpg", "mpeg")
     private val audioExt = setOf("mp3", "wav", "flac", "ogg", "m4a", "aac", "wma", "opus")
 
+    // Session caches: the filesystem scans are expensive (network shares,
+    // OneDrive placeholders) and re-running them on every tab switch freezes
+    // the UI for minutes. Restart the app (or call refreshLibrary) to rescan.
+    @Volatile private var cachedPhotos: List<PhotoItem>? = null
+    @Volatile private var cachedVideos: List<VideoItem>? = null
+    @Volatile private var cachedAudio: List<AudioItem>? = null
+    @Volatile private var cachedFiles: List<GenericFile>? = null
+
+    fun refreshLibrary() {
+        cachedPhotos = null; cachedVideos = null; cachedAudio = null; cachedFiles = null
+    }
+
     private fun home(name: String) = File(System.getProperty("user.home"), name)
     private val sharedFolder: File
         get() = File(
@@ -23,39 +35,41 @@ class MediaLibraryDesktop : MediaLibrary {
         ).apply { mkdirs() }
 
     override suspend fun getPhotos(): List<PhotoItem> = withContext(Dispatchers.IO) {
-        collectMatches(photoExt).map { f ->
+        cachedPhotos ?: collectMatches(photoExt, limit = 1500).map { f ->
             PhotoItem(
                 uri = f.toURI().toString(), filename = f.name, sizeBytes = f.length(),
                 dateTakenEpochMs = f.lastModified(), widthPx = 0, heightPx = 0,
             )
-        }
+        }.also { cachedPhotos = it }
     }
 
     override suspend fun getVideos(): List<VideoItem> = withContext(Dispatchers.IO) {
-        collectMatches(videoExt).map { f ->
+        cachedVideos ?: collectMatches(videoExt, limit = 1500).map { f ->
             VideoItem(
                 uri = f.toURI().toString(), filename = f.name,
                 relativePath = f.parentFile?.name ?: "Videos", sizeBytes = f.length(),
                 dateAddedEpochMs = f.lastModified(), durationMs = 0, thumbnailUri = null,
             )
-        }
+        }.also { cachedVideos = it }
     }
 
     override suspend fun getAudio(): List<AudioItem> = withContext(Dispatchers.IO) {
-        collectMatches(audioExt).map { f ->
+        cachedAudio ?: collectMatches(audioExt, limit = 1500).map { f ->
             AudioItem(
                 uri = f.toURI().toString(), filename = f.name, artist = null, album = null,
                 sizeBytes = f.length(), durationMs = 0,
             )
-        }
+        }.also { cachedAudio = it }
     }
 
     override suspend fun getAllFiles(): List<GenericFile> = withContext(Dispatchers.IO) {
-        val out = ArrayList<GenericFile>()
-        listOf(sharedFolder, home("Downloads"), home("Documents")).forEach { root ->
-            walk(root, out, 0)
+        cachedFiles ?: run {
+            val out = ArrayList<GenericFile>()
+            listOf(sharedFolder, home("Downloads"), home("Documents")).forEach { root ->
+                walk(root, out, 0)
+            }
+            out.distinctBy { it.uri }.also { cachedFiles = it }
         }
-        out.distinctBy { it.uri }
     }
 
     override suspend fun getStorageUsage(): StorageUsage = withContext(Dispatchers.IO) {
@@ -69,7 +83,7 @@ class MediaLibraryDesktop : MediaLibrary {
         net.morsecode.shared.storage.ServiceLocator.settings.put("shared_folder", path)
     }
 
-    private fun collectMatches(extensions: Set<String>, limit: Int = 5000): List<File> {
+    private fun collectMatches(extensions: Set<String>, limit: Int = 1500): List<File> {
         val out = ArrayList<File>(256)
         val roots = listOf(home("Pictures"), home("Videos"), home("Music"), sharedFolder)
         for (root in roots) walkMatching(root, extensions, out, 0, limit)

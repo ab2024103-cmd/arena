@@ -2,6 +2,9 @@ package net.morsecode.shared.platform
 
 import net.morsecode.shared.storage.PlatformDeps
 
+/** Does the OS report dark mode? null when unknown. */
+expect fun systemDarkThemeEnabled(): Boolean?
+
 expect val isDesktopPlatform: Boolean
 expect fun platformCopyToClipboard(text: String)
 expect fun platformDeviceType(): String

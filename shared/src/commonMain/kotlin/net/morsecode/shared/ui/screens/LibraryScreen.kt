@@ -4,6 +4,14 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.History
+import androidx.compose.material.icons.automirrored.filled.Image
+import androidx.compose.material.icons.automirrored.filled.VideoLibrary
+import androidx.compose.material.icons.filled.Apps
+import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
@@ -14,11 +22,21 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import net.morsecode.shared.ui.AppViewModel
 import net.morsecode.shared.ui.Route
 
-private val tabLabels = listOf("History", "Apps", "Photos", "Videos", "Music", "Files")
+private data class LibraryTab(val label: String, val icon: ImageVector)
+
+private val libraryTabs = listOf(
+    LibraryTab("History", Icons.AutoMirrored.Filled.History),
+    LibraryTab("Apps", Icons.Filled.Apps),
+    LibraryTab("Photos", Icons.AutoMirrored.Filled.Image),
+    LibraryTab("Videos", Icons.AutoMirrored.Filled.VideoLibrary),
+    LibraryTab("Music", Icons.Filled.MusicNote),
+    LibraryTab("Files", Icons.Filled.Folder),
+)
 
 /** Library hub hosting the History | Apps | Photos | Videos | Music | Files tab row (Section E). */
 @Composable
@@ -27,8 +45,13 @@ fun LibraryScreen(vm: AppViewModel, onNavigate: (Route) -> Unit) {
 
     Column(Modifier.fillMaxSize()) {
         TabRow(selectedTabIndex = selected) {
-            tabLabels.forEachIndexed { i, label ->
-                Tab(selected = selected == i, onClick = { selected = i }, text = { Text(label) })
+            libraryTabs.forEachIndexed { i, tab ->
+                Tab(
+                    selected = selected == i,
+                    onClick = { selected = i },
+                    icon = { Icon(tab.icon, contentDescription = tab.label) },
+                    text = { Text(tab.label, style = MaterialTheme.typography.labelMedium) },
+                )
             }
         }
         when (selected) {
