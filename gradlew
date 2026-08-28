@@ -279,9 +279,22 @@ if [ -n "$CI_LOG" ]; then
         if [ ! -s "$CI_LOG.picked" ]; then
             tail -n 60 "$CI_LOG" 2>/dev/null | grep -vE '^\s*at |^\s*\.\.\. |^Run with' | tail -n 25 > "$CI_LOG.picked" 2>/dev/null || true
         fi
-        # Emit the LAST ~10 chunks: the end of the failure block is what matters.
-        fold -w 460 -s "$CI_LOG.picked" | grep -v '^$' | tail -n 10 | while IFS= read -r ann_line; do
-            printf '::error::%s\n' "$ann_line"
+        # Emit annotations with priority: compiler/test errors get reserved
+        # slots first, then the failure summary, then the raw tail.
+        grep -E "^e: " "$CI_LOG" 2>/dev/null | head -n 20 | fold -w 460 -s | grep -v '^$' | head -n 4 | while IFS= read -r ann_line; do
+            printf '::error::[compiler] %s\n' "$ann_line"
+        done
+        grep -A1 -E ' FAILED( |$)' "$CI_LOG" 2>/dev/null | head -n 8 | fold -w 460 -s | grep -v '^$' | head -n 2 | while IFS= read -r ann_line; do
+            printf '::error::[test] %s\n' "$ann_line"
+        done
+        awk '/^FAILURE: Build failed/{flag=1; print; next} flag' "$CI_LOG" 2>/dev/null | grep -vE '^\s+at |^Run with|^Get more help' | head -n 12 | fold -w 460 -s | grep -v '^$' | head -n 2 | while IFS= read -r ann_line; do
+            printf '::error::[failure] %s\n' "$ann_line"
+        done
+        grep -E '^error' "$CI_LOG" 2>/dev/null | head -n 4 | fold -w 460 -s | grep -v '^$' | head -n 1 | while IFS= read -r ann_line; do
+            printf '::error::[error] %s\n' "$ann_line"
+        done
+        tail -n 400 "$CI_LOG" 2>/dev/null | grep -vE '^\s+at |^\s*\.\.\.[0-9]+ more|^Run with |^Get more help|^> Run with|^Download|^Note: |^Warning: |^The system is |^$' | tail -n 60 | fold -w 460 -s | grep -v '^$' | tail -n 2 | while IFS= read -r ann_line; do
+            printf '::error::[tail] %s\n' "$ann_line"
         done
         # Raw tail -> job summary (public run page) for full-context debugging.
         if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
