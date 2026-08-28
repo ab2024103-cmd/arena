@@ -10,7 +10,6 @@ import java.awt.SystemTray
 import java.awt.TrayIcon
 import javax.imageio.ImageIO
 import net.morsecode.shared.ui.AppViewModel
-import org.jetbrains.skia.Image
 
 /** System tray icon with Open / Pause Discovery / Quit (Section D). */
 object TrayManager {
@@ -54,7 +53,7 @@ object TrayManager {
 
     fun windowIconPainter(): Painter? = try {
         val bytes = TrayManager::class.java.getResourceAsStream("/icon256.png")!!.readBytes()
-        BitmapPainter(Image.makeFromEncoded(bytes).toComposeImageBitmap())
+        BitmapPainter(org.jetbrains.skia.Image.makeFromEncoded(bytes).toComposeImageBitmap())
     } catch (e: Exception) {
         null
     }

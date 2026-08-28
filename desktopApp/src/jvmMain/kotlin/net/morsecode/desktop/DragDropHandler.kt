@@ -40,6 +40,6 @@ fun WindowScope.DragDropHost(vm: AppViewModel) {
             }
         }
         val target = DropTarget(window, adapter)
-        onDispose { target.removeDropTarget(adapter) }
+        onDispose { target.removeDropTargetListener(adapter) }
     }
 }
