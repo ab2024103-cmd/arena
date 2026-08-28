@@ -66,16 +66,17 @@ object DesktopDirs {
 actual fun buildPlatformDeps(context: PlatformContext?): PlatformDeps {
     val driver: SqlDriver = JdbcSqliteDriver("jdbc:sqlite:" + DesktopDirs.dbFile.absolutePath)
     // Idempotent schema init: rapid relaunches raced the file-existence check
-    // and crashed with "table history_entry already exists". Run CREATE TABLE
-    // IF NOT EXISTS for every statement on every startup instead.
-    runCatching {
-        for (stmt in MorseDb.Schema.statements) {
-            driver.execute(
-                null,
-                stmt.replace("CREATE TABLE ", "CREATE TABLE IF NOT EXISTS ", ignoreCase = true),
-                0,
-            )
-        }
+    // and crashed with "table history_entry already exists". Ensure every
+    // table exists on every startup instead (matches the .sq definitions).
+    val ddl = listOf(
+        "CREATE TABLE IF NOT EXISTS transfer_state (transfer_id TEXT NOT NULL, file_id TEXT NOT NULL, batch_id TEXT, peer_device_id TEXT NOT NULL, filename TEXT NOT NULL, total_chunks INTEGER NOT NULL, verified_chunks_bitmap TEXT NOT NULL DEFAULT '', sha256_full TEXT NOT NULL, status TEXT NOT NULL, direction TEXT NOT NULL, updated_at INTEGER NOT NULL, PRIMARY KEY (transfer_id, file_id))",
+        "CREATE TABLE IF NOT EXISTS chat_message (message_id TEXT NOT NULL PRIMARY KEY, peer_device_id TEXT NOT NULL, text TEXT NOT NULL, direction TEXT NOT NULL, sent_at INTEGER NOT NULL, delivered INTEGER NOT NULL DEFAULT 0)",
+        "CREATE TABLE IF NOT EXISTS history_entry (id TEXT NOT NULL PRIMARY KEY, batch_id TEXT, peer_device_id TEXT NOT NULL, peer_name TEXT NOT NULL, filename TEXT NOT NULL, size_bytes INTEGER NOT NULL, direction TEXT NOT NULL, kind TEXT NOT NULL, mime TEXT, source TEXT, path TEXT, status TEXT NOT NULL, ts INTEGER NOT NULL)",
+        "CREATE TABLE IF NOT EXISTS trusted_device (device_id TEXT NOT NULL PRIMARY KEY, name TEXT NOT NULL, added_at INTEGER NOT NULL)",
+        "CREATE TABLE IF NOT EXISTS kv (k TEXT NOT NULL PRIMARY KEY, v TEXT NOT NULL)",
+    )
+    for (stmt in ddl) {
+        runCatching { driver.execute(null, stmt, 0) }
     }
     return PlatformDeps(
         driver = driver,
