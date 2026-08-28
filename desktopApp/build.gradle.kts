@@ -1,4 +1,5 @@
 import java.io.ByteArrayOutputStream
+import java.util.zip.ZipFile
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
@@ -202,7 +203,7 @@ fun checkAppImage(dir: File): List<String> = buildList {
         // is really present in one of the packaged jars.
         val hasMainClass = appJars.any { jar ->
             try {
-                java.util.zip.ZipFile(jar).use { zf -> zf.getEntry("net/morsecode/desktop/MainKt.class") != null }
+                ZipFile(jar).use { zf -> zf.getEntry("net/morsecode/desktop/MainKt.class") != null }
             } catch (_: Exception) {
                 false
             }
