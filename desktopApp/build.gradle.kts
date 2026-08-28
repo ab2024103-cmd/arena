@@ -199,15 +199,31 @@ fun checkAppImage(dir: File): List<String> = buildList {
     if (appJars.isEmpty()) {
         add("no jars in app/")
     } else {
+        println("validateAppImage[${dir.parentFile.parentFile.name}]: jar inventory:")
+        appJars.forEach { jar ->
+            val entries = try {
+                ZipFile(jar).use { zf -> zf.size() }
+            } catch (_: Exception) {
+                -1
+            }
+            println("  ${jar.name} (${jar.length()} bytes, $entries entries)")
+        }
         // The launcher loads net.morsecode.desktop.MainKt by name; verify it
         // is really present in one of the packaged jars.
-        val hasMainClass = appJars.any { jar ->
+        var hasMainClass = false
+        var hasDesktopPkg = false
+        for (jar in appJars) {
             try {
-                ZipFile(jar).use { zf -> zf.getEntry("net/morsecode/desktop/MainKt.class") != null }
+                ZipFile(jar).use { zf ->
+                    val all = zf.entries().asSequence().map { it.name }.toList()
+                    if (!hasMainClass) hasMainClass = all.contains("net/morsecode/desktop/MainKt.class")
+                    if (!hasDesktopPkg) hasDesktopPkg = all.any { it.startsWith("net/morsecode/desktop/") }
+                }
             } catch (_: Exception) {
-                false
             }
         }
-        if (!hasMainClass) add("net.morsecode.desktop.MainKt not found in any jar in app/ (entrypoint stripped?)")
+        if (!hasMainClass) {
+            add("net.morsecode.desktop.MainKt not found in any jar in app/ (any desktop pkg class present: $hasDesktopPkg)")
+        }
     }
 }
